@@ -12,7 +12,7 @@ Går alltid att spara filen och återkomma senare. Linux/Bash lär va relevant i
 \
 Informationen är nog inte organiserad på det bästa sättet samt finns en massa mer jag skulle kunna ta upp. Ifall ni uppskattar detta / tycker det var lärorikt osv skicka gärna ett mail så vet jag ifall det är värt att lägga till mer tid på detta. Samt gärna ifall ni vill att jag ska täcka en specifik grej som ni undrar om.\
 \
-## Grundläggande info\
+## Grundläggande info
 Ifall denna sektion är förvirrande i början så hoppa till sektion Praktisk genomgång \
 \
 Bash är shell-programmet som används by default i av de flesta Linux versioner/distrubitioner. \
@@ -45,7 +45,7 @@ Konkret exempel, testa kör och se vad som händer. \
 	```-> ls | grep a > a.txt ```\
 Kommer återkomma till mer avancerade bash-saker senare. Nu till lite praktisk användning. \
 \
-## Praktisk genomgång\
+## Praktisk genomgång
 \
 Ifall ni inte vill glömma detta direkt så rekommenderar jag att följa med praktiskt. \
 Så öppna en terminal!\
@@ -184,7 +184,7 @@ En lite mer avancerad är vim. kör dock först lite av vimtutor innan ni öppna
 Starta program i bakgrunden (aka låt inte programmet ta över terminalens stdin) \
 	```-> program & ```\
 \
-## Enviroment variables \
+## Enviroment variables
 Som ni kanske vet har alla program nått som kallas enviroment variables. \
 Vissa versioner av exec behandlar dessa. \
 \
@@ -218,16 +218,14 @@ Röra clipboard via terminalen\
 	-> man xclip\
 	-> echo "wtf" | xclip -i -selection clipboard\
 Testa ctrl+v i webbläsaren eller ctrl+shift+v i terminalen.\
-</p>\
 \
-## Kul (D:) Uppgift\
+## Kul (D:) Uppgift
 \
 Ni skulle tillexempel kunna sätta upp en directory i er användere \
-	```-> mkdir ~/bin```\
-Lägg till den i er PATH\
+	```-> mkdir ~/bin``` \
+Lägg till den i er PATH \
 Skriv en makefile som alltid (eller via specifik regel) skickar resultatet av när ni kompilerar era c program till ~/bin\
 Då slipper ni skriva ./program för att köra dem / kan köra dem från vilken directory som helst.\
 Detta kräver att ni lär er makefiles bra så se det som en trevlig belöning.\
-Bra tutorial till make\
-https://makefiletutorial.com/\
-Kom ihåg att make bara är ett program som ligger i /bin\
+Bra tutorial att följa om ni vill make\
+https://makefiletutorial.com/ \
