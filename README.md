@@ -20,7 +20,7 @@ kursen Systemnära programmering (5DV088).
 * Bra guide till [makefiles](https://makefiletutorial.com/)
 * [Bash tutorial](./tutorials/bash_tutorial.md) på svengelska
 * Inlämning av uppgifter via [labres](https://webapps.cs.umu.se/labresults/v2/handin.php?courseid=485).
-* [support-chattrum](https://chat.cs.umu.se/#/room/!FrEZLdUEVGMIJEKzHb:cs.umu.se).
+* [support-chattrum](https://chat.cs.umu.se/#/room/!QtImbYbZuLkzmYwKsc:cs.umu.se?via=cs.umu.se).
 * Kö-system vi använder oss av under handledningen [tutorqueue](https://webapps.cs.umu.se/tutorqueue/session.php?session=120).
 * [schema](https://cloud.timeedit.net/umu/web/public1/ri16Z517X97Z07Q6Z76g73Q0yy0Y6YQ2c0agQY6Q5372n5h6xlb4dnnenwc.html) för kursen.
 
