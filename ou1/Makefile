@@ -5,19 +5,23 @@
 
 CC = gcc
 CFLAGS = -g -std=gnu11 -Werror -Wall -Wextra -Wpedantic -Wmissing-declarations -Wmissing-prototypes -Wold-style-definition
-#CFLAGS = -g -std=gnu11 -Wall
 #LDFLAGS = 
 
-all: mexec
+TARGET = mexec
 
-mexec: mexec.o  
+SRC = $(TARGET:=.c)
+OBJ = $(TARGET:=.o)
+
+all: $(TARGET)
+
+$(TARGET): $(OBJ)
 	$(CC) -o $@ $^ $(LDFLAGS)  
 
-mexec.o: mexec.c
+$(OBJ): $(SRC)
 	$(CC) -c $^ $(CFLAGS)
 	
 clean: 
-	-rm -f mexec mexec.o
+	-rm -f $(TARGET) $(OBJ)
 	
-memtest: mexec
-	valgrind --leak-check=full --show-reachable=yes ./$<
+memtest: $(TARGET)
+	valgrind --leak-check=full --show-reachable=yes --track-fds=yes ./$< args4

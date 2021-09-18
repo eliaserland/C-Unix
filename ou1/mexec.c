@@ -13,54 +13,49 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-//#include <sys/types.h>
 #include <sys/wait.h>
 
 #define READ_END 0
 #define WRITE_END 1
 #define BUFSIZE 1024
 
-//void visualize_args(int argc, char *argv[]);
-
-
 int main (int argc, char *argv[]) {
     
-    //visualize_args(argc, argv); // REMOVE THIS
     FILE *input;
-    
     if (argc == 1) { 
         // Read from stdin
         input = stdin;
     } else if (argc == 2) {
         // Read from file
         if ((input = fopen(argv[1], "r")) == NULL) {
-            perror("fopen error");
+            perror(argv[1]);
             exit(EXIT_FAILURE);
         }
     } else {
-        fprintf(stderr, "Too many arguments. mexec takes either one or zero arguments.\n");
+        // Too many arguments.
+        fprintf(stderr, "Usage: ./mexec [FILE]\n");
         exit(EXIT_FAILURE);
     }
     
-    int i, p_count = 0;
+    int arg_cnt, proc_cnt = 0;
     char buffer[BUFSIZE], *token, **args;
-    char ***progs = NULL;  
+    char ***prog_cmds = NULL;  
     
     /* Read from the specified stream, one line at a time, until EOF. */
     while (fgets(buffer, BUFSIZE, input) != NULL) {
-        i = 0;
+        buffer[strcspn(buffer, "\n")] = 0; // Remove trailing newline char.
+        arg_cnt = 0;
         args = NULL;
-        buffer[strcspn(buffer, "\n")] = 0; // Remove trailing newline char. //VERIFY FUNCTIONALITY
         
-        /* Split string into individual arguments, delimited by whitespace. */
+        /* Split buffer string into arguments, delimited by whitespace. */
         token = strtok(buffer, " ");
         while (token != NULL) {
-            args = realloc(args, (i+1)*sizeof(char*));
+            args = realloc(args, (arg_cnt+1)*sizeof(char*));
             if (args == NULL) {
             	perror("realloc error");
             	exit(EXIT_FAILURE);
             }
-            if ((args[i++] = strdup(token)) == NULL) {
+            if ((args[arg_cnt++] = strdup(token)) == NULL) {
             	perror("strdup error");
             	exit(EXIT_FAILURE);
             }
@@ -68,143 +63,130 @@ int main (int argc, char *argv[]) {
         }
         
         /* Add extra NULL required by exec. */
-        args = realloc(args, (i+1)*sizeof(char*));
+        args = realloc(args, (arg_cnt+1)*sizeof(char*));
         if (args == NULL) {
     		perror("realloc error");
         	exit(EXIT_FAILURE);
         }
-		args[i] = (char *) NULL; 
+		args[arg_cnt] = NULL; 
         
 		/* Save args */        
-		progs = realloc(progs, (p_count+1)*sizeof(char**));
-		if (progs == NULL) {
+		prog_cmds = realloc(prog_cmds, (proc_cnt+1)*sizeof(char**));
+		if (prog_cmds == NULL) {
 			perror("realloc error");
         	exit(EXIT_FAILURE);
 		}
-		progs[p_count++] = args;
+		prog_cmds[proc_cnt++] = args;
     }
-    fclose(input);
+    if (argc == 2) {
+        fclose(input); // Only close stream if reading from file.
+    }
     
-    /* Open the (p_count-1) pipes required. */
-    int pipeID[p_count-1][2];
-    for (int i = 0; i < p_count-1; i++) {
-    	if (pipe(pipeID[i]) != 0) {
-    		perror("pipe error");
-        	exit(EXIT_FAILURE);
-    	}
-    } 
+    /* Open the (proc_cnt-1) pipes required. */
+    int **pipeID;
+    if (proc_cnt > 1) {
+        pipeID = malloc((proc_cnt-1)*sizeof(int*));
+        if (pipeID == NULL) {
+        		perror("malloc error");
+            	exit(EXIT_FAILURE);
+        }
+        for (int i = 0; i < proc_cnt-1; i++) {
+            pipeID[i] = malloc(2*sizeof(int));
+            if (pipeID[i] == NULL) {
+        		perror("malloc error");
+            	exit(EXIT_FAILURE);
+            }
+            if (pipe(pipeID[i]) != 0) {
+        		perror("pipe error");
+            	exit(EXIT_FAILURE);
+        	}
+        }
+    }
     
-    /* Create the (p_count) children processes */
-    int child = -1;
+    /* Create the (proc_cnt) children processes */
+    int child_no;
     pid_t pid; 
-    for (int i = 0; i < p_count; i++) {
+    for (int i = 0; i < proc_cnt; i++) {
     	pid = fork();
     	if (pid < 0) {
     		perror("fork error");
         	exit(EXIT_FAILURE);
-    	} else if (pid == 0) { // CHILD
-    		
+    	} else if (pid == 0) { // Only children
     		/* Perform dup2 */
-    		if (i == 0) { 
-    			// First child
-				dup2(pipeID[i][WRITE_END], STDOUT_FILENO); 	// ERROR HANDLING
-    		} else if (i == p_count-1) { 
-    			// Last child
-    			dup2(pipeID[i-1][READ_END], STDIN_FILENO); 	// ERROR HANDLING
-    		} else { 
-    			// Intermediate children
-    			dup2(pipeID[i-1][READ_END], STDIN_FILENO); 	// ERROR HANDLING
-	    		dup2(pipeID[i][WRITE_END], STDOUT_FILENO); 	// ERROR HANDLING
+    		if (proc_cnt > 1) {	
+        		if (i == 0) { 
+        			// First child
+				    if (dup2(pipeID[i][WRITE_END], STDOUT_FILENO) == -1) {
+				        perror("dup2 error");
+            	        exit(EXIT_FAILURE);
+				    }
+        		} else if (i == proc_cnt-1) { 
+        			// Last child
+        			if (dup2(pipeID[i-1][READ_END], STDIN_FILENO) == -1) {
+        			    perror("dup2 error");
+            	        exit(EXIT_FAILURE);
+        			}
+        		} else { 
+        			// Intermediate children
+        			if (dup2(pipeID[i-1][READ_END], STDIN_FILENO) == -1) {
+        			    perror("dup2 error");
+            	        exit(EXIT_FAILURE);
+        			}
+	        		if (dup2(pipeID[i][WRITE_END], STDOUT_FILENO) == -1) {
+	        		    perror("dup2 error");
+            	        exit(EXIT_FAILURE);
+	        		}
+        		}
     		}
-    		child = i; 
+    		child_no = i; 
     		break;    	
     	}
     }
     
     /* Close all pipes (parent & children). */
-    for (int i = 0; i < p_count-1; i++) {
+    for (int i = 0; i < proc_cnt-1; i++) {
     	for (int j = 0; j < 2; j++) {
     		close(pipeID[i][j]);
     	}
     }
-    
-    /*
-    // TEST PRINT
-    for (int i = 0; i < p_count; i++) {
-    	int j = 0; 
-    	while (progs[i][j] != NULL) {
-    		printf("%s ", progs[i][j]);
-    		j++;
-    	}
-    	printf("\n");
-    }
-    */
-    
-    
+       
     /* Exec on all children. */
-    if (child != -1) {
-    	if (execvp(progs[child][0], progs[child]) < 0) {
-    		perror("execv error");
+    if (pid == 0) {
+    	if (execvp(prog_cmds[child_no][0], prog_cmds[child_no]) < 0) {
+    		perror(prog_cmds[child_no][0]);
     		exit(EXIT_FAILURE);
     	}
     } 
     
-    /* Wait on all children. */
+    /* Let parent wait on all children. */
     int status;
- 	for (int i = 0; i < p_count; i++) {
+ 	for (int i = 0; i < proc_cnt; i++) {
  		if ((pid = wait(&status)) == -1) {
  			perror("wait error");
  			exit(EXIT_FAILURE);
  		}
  		if (WEXITSTATUS(status) != 0) {
- 			fprintf(stderr, "Child terminated with error\n");
+ 			fprintf(stderr, "Child process terminated with error.\n");
         	exit(EXIT_FAILURE);
  		}
  	}   
-    
-   
-    
-    
-    // 2D INDEXING IN "progs" IS F-ED, NEED TO BE SQUARE TO WORK ???
-    
 
-    
-    // Parse input arguments
-    
-    // Open all pipes required
-    
-    // Fork, create all childs
-    
-    // dup2
-    
-    // Close all unused pipe-ends 
-    
-    // Exec in each child
-    
-    // Wait
-
-    // Freeing dynamic memory 
-    for (int i = 0; i < p_count; i++) {
+    /* Freeing dynamically allocated memory */ 
+    for (int i = 0; i < proc_cnt; i++) {
     	int j = 0; 
-    	while (progs[i][j] != NULL) {
-    		free(progs[i][j]);
+    	while (prog_cmds[i][j] != NULL) {
+    		free(prog_cmds[i][j]);
     		j++;
     	}
-    	free(progs[i]);
+    	free(prog_cmds[i]);
     }
-    free(progs);
+    free(prog_cmds);
+    for (int i = 0; i < proc_cnt-1; i++) {
+        free(pipeID[i]);
+    }
+    if (proc_cnt > 1) {
+        free(pipeID);
+    }
     
     return 0;
 }
-
-
-/*
-void visualize_args(int argc, char *argv[]) { 
-    printf("argc: %d", argc);
-    for (int i = 0; i < argc; i++) {
-        printf(", argv[%d]: %s", i, argv[i]);
-    }
-    printf("\n");
-}
-*/
-
