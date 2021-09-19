@@ -15,7 +15,7 @@ OBJ = $(TARGET:=.o)
 all: $(TARGET)
 
 $(TARGET): $(OBJ)
-	$(CC) -o $@ $^ $(LDFLAGS)  
+	$(CC) -o $@ $^ $(LDFLAGS) $(CFLAGS) 
 
 $(OBJ): $(SRC)
 	$(CC) -c $^ $(CFLAGS)
@@ -24,4 +24,4 @@ clean:
 	-rm -f $(TARGET) $(OBJ)
 	
 memtest: $(TARGET)
-	valgrind --leak-check=full --show-reachable=yes --track-fds=yes ./$< args4
+	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --show-reachable=yes --track-fds=yes ./$<

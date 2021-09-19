@@ -1,5 +1,5 @@
 /*
- * mexec - Execute an arbitrary pipeline. 
+ * mexec - Execute an arbitrary pipeline of commands, specified by file or stdin. 
  *
  * OU1 for C programming and Unix, Umea University Autumn 2021.
  * 
@@ -43,7 +43,7 @@ int main (int argc, char *argv[]) {
     
     /* Read from the specified stream, one line at a time, until EOF. */
     while (fgets(buffer, BUFSIZE, input) != NULL) {
-        buffer[strcspn(buffer, "\n")] = 0; // Remove trailing newline char.
+        buffer[strcspn(buffer, "\n")] = 0; // Remove trailing newline character.
         arg_cnt = 0;
         args = NULL;
         
@@ -70,7 +70,7 @@ int main (int argc, char *argv[]) {
         }
 		args[arg_cnt] = NULL; 
         
-		/* Save args */        
+		/* Save the parsed command and arguments. */        
 		prog_cmds = realloc(prog_cmds, (proc_cnt+1)*sizeof(char**));
 		if (prog_cmds == NULL) {
 			perror("realloc error");
@@ -81,6 +81,7 @@ int main (int argc, char *argv[]) {
     if (argc == 2) {
         fclose(input); // Only close stream if reading from file.
     }
+    
     
     /* Open the (proc_cnt-1) pipes required. */
     int **pipeID;
@@ -166,7 +167,7 @@ int main (int argc, char *argv[]) {
  			exit(EXIT_FAILURE);
  		}
  		if (WEXITSTATUS(status) != 0) {
- 			fprintf(stderr, "Child process terminated with error.\n");
+ 			fprintf(stderr, "Child process exited with error.\n");
         	exit(EXIT_FAILURE);
  		}
  	}   
