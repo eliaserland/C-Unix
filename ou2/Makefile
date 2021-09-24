@@ -4,7 +4,7 @@
 #   2021-10-01: v1.0, first public version. 
 
 CC = gcc
-CFLAGS = -g -std=gnu11  -Wall -Wextra -Wpedantic -Wmissing-declarations -Wmissing-prototypes -Wold-style-definition #-Werror
+CFLAGS = -g -std=gnu11  -Wall -Wextra -Wpedantic -Wmissing-declarations  -Wold-style-definition #-Werror -Wmissing-prototypes
 #LDFLAGS = 
 
 TARGET = mmake
