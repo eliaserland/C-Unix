@@ -19,6 +19,12 @@
 #define WRITE_END 1
 #define BUFSIZE 1024
 
+void close_pipes(int pipe_cnt, int **pipeID);
+int exec_cmd(char **args);
+int wait_on_children(int proc_cnt);
+void kill_all(int proc_cnt, int **pipeID, char ***prog_cmds);
+
+
 int main (int argc, char *argv[]) {
 	
 	FILE *input;
@@ -104,6 +110,10 @@ int main (int argc, char *argv[]) {
 		}
 	}
 	
+	// -------- Can use kill_all() from here on ------------
+	
+	spawn_children(proc_cnt)
+	
 	/* Create the (proc_cnt) children processes */
 	int child_no;
 	pid_t pid; 
@@ -145,33 +155,145 @@ int main (int argc, char *argv[]) {
 	}
 	
 	/* Close all pipes (parent & children). */
-	for (int i = 0; i < proc_cnt-1; i++) {
+	close_pipes(proc_cnt, pipeID);
+	   
+	/* Exec on all children. */
+	if (pid == 0 && exec_cmd(prog_cmds[child_no]) != 0) {
+		kill_all(proc_cnt, pipeID, prog_cmds);
+		exit(EXIT_FAILURE);
+	} 
+	
+	/* Let parent wait on all children. */	
+	if (wait_on_children(proc_cnt) != 0) {
+		kill_all(proc_cnt, pipeID, prog_cmds);
+		exit(EXIT_FAILURE);
+	}
+
+
+	/* Free dynamically allocated memory */
+	kill_all(proc_cnt, pipeID, prog_cmds);
+		
+	return 0;
+}
+
+/**
+ * Create a specified number of chilren processes.
+ *
+ * @param proc_cnt  The number of children to create.
+ * @param child_no  A pointer to a .
+ */
+int spawn_children(int proc_cnt, int *child_no) {
+	pid_t pid;	
+	for (int i = 0; i < proc_cnt; i++) {
+		pid = fork();
+		if (pid < 0) {
+			perror("fork error");
+			return 1
+		} else if (pid == 0) { // Only children
+			*child_no = i; 
+			break;
+		}	
+	}
+	return 0;
+}
+	
+	/* Create the (proc_cnt) children processes */
+	int child_no;
+	pid_t pid; 
+	for (int i = 0; i < proc_cnt; i++) {
+		pid = fork();
+		if (pid < 0) {
+			perror("fork error");
+			exit(EXIT_FAILURE);
+		} else if (pid == 0) { // Only children
+			/* Perform dup2 */
+			if (proc_cnt > 1) {	
+				if (i == 0) { 
+					// First child
+					if (dup2(pipeID[i][WRITE_END], STDOUT_FILENO) == -1) {
+						perror("dup2 error");
+						exit(EXIT_FAILURE);
+					}
+				} else if (i == proc_cnt-1) { 
+					// Last child
+					if (dup2(pipeID[i-1][READ_END], STDIN_FILENO) == -1) {
+						perror("dup2 error");
+						exit(EXIT_FAILURE);
+					}
+				} else { 
+					// Intermediate children
+					if (dup2(pipeID[i-1][READ_END], STDIN_FILENO) == -1) {
+						perror("dup2 error");
+						exit(EXIT_FAILURE);
+					}
+					if (dup2(pipeID[i][WRITE_END], STDOUT_FILENO) == -1) {
+						perror("dup2 error");
+						exit(EXIT_FAILURE);
+					}
+				}
+			}
+			child_no = i; 
+			break;    	
+		}
+	}
+
+
+/**
+ * Close all pipes.
+ *
+ * @param pipe_cnt  The number of open pipes.
+ * @param pipeID    2D array of pipe file descriptors.
+ */
+void close_pipes(int pipe_cnt, int **pipeID) {
+	for (int i = 0; i < pipe_cnt-1; i++) {
 		for (int j = 0; j < 2; j++) {
 			close(pipeID[i][j]);
 		}
 	}
-	   
-	/* Exec on all children. */
-	if (pid == 0) {
-		if (execvp(prog_cmds[child_no][0], prog_cmds[child_no]) < 0) {
-			perror(prog_cmds[child_no][0]);
-			exit(EXIT_FAILURE);
-		}
-	} 
-	
-	/* Let parent wait on all children. */
+}
+
+/**
+ * Execute a program with arguments.
+ *
+ * @param args	Array of strings, representing program command with arguments.
+ * @return 		Returns 1 if exec fails.
+ */
+int exec_cmd(char **args) {
+	if (execvp(args[0], args) < 0) {
+		perror(args[0]);
+		return 1;
+	}	
+}
+
+/**
+ * Let the process (assumed to be parent) wait on all its children.
+ *
+ * @param proc_cnt  The number of children processes.
+ * @return 			Returns 0 if successfully waited on all children.
+ */
+int wait_on_children(int proc_cnt) {
 	int status;
  	for (int i = 0; i < proc_cnt; i++) {
- 		if ((pid = wait(&status)) == -1) {
+ 		if ((wait(&status)) == -1) {
  			perror("wait error");
- 			exit(EXIT_FAILURE);
+ 			return 1;
  		}
  		if (WEXITSTATUS(status) != 0) {
  			fprintf(stderr, "Child process exited with error.\n");
-			exit(EXIT_FAILURE);
+			return 1;
  		}
- 	}   
+ 	}
+ 	return 0;
+}
 
+/**
+ * Return all dynamically allocated memory.
+ *
+ * @param proc_cnt  The number of chilren processes/program commands.
+ * @param pipeID    2D array of pipe file descriptors.
+ * @param prog_cmds 2D array of program commands.
+ */
+void kill_all(int proc_cnt, int **pipeID, char ***prog_cmds) {
 	/* Freeing dynamically allocated memory */ 
 	for (int i = 0; i < proc_cnt; i++) {
 		int j = 0; 
@@ -188,6 +310,7 @@ int main (int argc, char *argv[]) {
 	if (proc_cnt > 1) {
 		free(pipeID);
 	}
-	
-	return 0;
 }
+
+
+
