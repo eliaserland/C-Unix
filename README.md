@@ -5,7 +5,7 @@ kursen Systemnära programmering (5DV088).
 
 - [Obligatorisk uppgift 1 - `mexec`](./ou1/mexec.md)
 - [Obligatorisk uppgift 2 - `mmake`](./ou2/mmake.md)
-- [Obligatorisk uppgift 3 - Kommer senare]
+- [Obligatorisk uppgift 3 - `mdu`](./ou3/mdu.md)
 
 ## Deadlines
 
@@ -13,7 +13,7 @@ kursen Systemnära programmering (5DV088).
 | ------ | ------      |  ------     |  ------ |
 | 1 - mexec| 2021-09-21 12:00  | 2021-10-11 12:00 |   2022-01-15 16:00 |
 | 2 - mmake| 2021-10-01 12:00  |  *  |  2022-01-15 16:00 |
-| 3 - ???| 2021-10-15 12:00 | * | 2022-01-15 16:00 |
+| 3 - mdu| 2021-10-15 12:00 | * | 2022-01-15 16:00 |
 \* Senast 10 arbetsdagar efter rättning publicerad.
 
 ## Länkar / tutorials
