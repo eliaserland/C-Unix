@@ -1,7 +1,7 @@
 # Laboration 3 - `mdu`
 
 I laborationen ska ni skriva ett C-program som beräknar hur stor plats en
-uppsätning specificerade filer tar på disken. Om de specificerade filerna är
+uppsättning specificerade filer tar på disken. Om de specificerade filerna är
 kataloger ska de traverseras rekursivt för att beräkna totala diskanvändningen
 för katalogen. Om `-j` flaggan används ska katalogerna traverseras parallellt.
 
