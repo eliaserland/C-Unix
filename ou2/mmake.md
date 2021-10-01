@@ -181,6 +181,7 @@ delar:
 
 - Kompilering och körning
 - Användarhandledning
+- Diskussion och reflektion
 
 Kompilering och körning ska beskriva hur din lösning kompileras och körs via
 terminal på institutionens datorer.  Detta bör beskrivas med exempel.
