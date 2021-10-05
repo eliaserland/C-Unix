@@ -41,7 +41,9 @@ int open_pipes(int n, int ***pipeID);
 int  spawn_children		(int proc_cnt, int *child_no);
 int  dup_pipe			(int proc_cnt, int child_no, int **pipeID);
 void close_pipes		(int pipe_cnt, int **pipeID);
-int  exec_cmd			(char **args);
+
+int exec_cmd(command cmd);
+
 int  wait_on_children	(int proc_cnt);
 void kill_all			(int proc_cnt, int **pipeID, char ***prog_cmds);
 
@@ -67,7 +69,6 @@ int main (int argc, char *argv[])
 	
 	int arg_cnt, proc_cnt = 0;
 	char buffer[BUFSIZE], *token, **args;
-	//char ***prog_cmds = NULL; 
 	
 	command *cmds = NULL;
 	 
@@ -96,15 +97,15 @@ int main (int argc, char *argv[])
 				exit(EXIT_FAILURE);
 			}
 			
-			if (safe_strdup(token, &args[arg_cnt++])) {
+			/*if (safe_strdup(token, &args[arg_cnt++])) {
 				exit(EXIT_FAILURE);
-			}
+			}*/
 				
-			/*
+			
 			if ((args[arg_cnt++] = strdup(token)) == NULL) {
 				perror("strdup error");
 				exit(EXIT_FAILURE);
-			}*/
+			}
 			token = strtok(NULL, " ");
 		}
 		
@@ -120,12 +121,12 @@ int main (int argc, char *argv[])
 		
 		
 		/* Save the parsed command and arguments. */        
-		prog_cmds = realloc(prog_cmds, (proc_cnt+1)*sizeof(cmd));
-		if (prog_cmds == NULL) {
+		cmds = realloc(cmds, (proc_cnt+1)*sizeof(command));
+		if (cmds == NULL) {
 			perror("realloc error");
 			exit(EXIT_FAILURE);
 		}
-		prog_cmds[proc_cnt++].args = args;
+		cmds[proc_cnt++] = args;
 		
 		
 		
@@ -150,7 +151,7 @@ int main (int argc, char *argv[])
 	int **pipeID = NULL;
 	if (pipes && open_pipes(proc_cnt-1, &pipeID)) {
 		close_pipes(proc_cnt-1, pipeID);
-		kill_all(proc_cnt, pipeID, prog_cmds);	
+		kill_all(proc_cnt, pipeID, cmds);	
 		exit(EXIT_FAILURE);
 	}
 	
@@ -162,14 +163,14 @@ int main (int argc, char *argv[])
 	int child_no;
 	if (spawn_children(proc_cnt, &child_no) != 0) {
 		close_pipes(proc_cnt-1, pipeID);
-		kill_all(proc_cnt, pipeID, prog_cmds);
+		kill_all(proc_cnt, pipeID, cmds);
 		exit(EXIT_FAILURE);
 	}
 	
 	/* Duplicate pipe file descriptors to stdin/stdout appropriately for all children. */
 	if (pipes && child_no > -1 && dup_pipe(proc_cnt, child_no, pipeID) != 0) {
 		close_pipes(proc_cnt-1, pipeID);
-		kill_all(proc_cnt, pipeID, prog_cmds);
+		kill_all(proc_cnt, pipeID, cmds);
 		exit(EXIT_FAILURE);
 	}  
 	
@@ -177,30 +178,30 @@ int main (int argc, char *argv[])
 	close_pipes(proc_cnt-1, pipeID);
 	   
 	/* Exec on all children. */
-	if (child_no > -1 && exec_cmd(prog_cmds[child_no]) != 0) {
+	if (child_no > -1 && exec_cmd(cmds[child_no]) != 0) {
 		//close_pipes(proc_cnt-1, pipeID);
-		kill_all(proc_cnt, pipeID, prog_cmds);
+		kill_all(proc_cnt, pipeID, cmds);
 		exit(EXIT_FAILURE);
 	} 
 	
 	/* Let parent wait on all children. */	
 	if (wait_on_children(proc_cnt)) {
 		//close_pipes(proc_cnt-1, pipeID);
-		kill_all(proc_cnt, pipeID, prog_cmds);
+		kill_all(proc_cnt, pipeID, cmds);
 		exit(EXIT_FAILURE);
 	}
 
 	//close_pipes(proc_cnt-1, pipeID);
 
 	/* Free dynamically allocated memory */
-	kill_all(proc_cnt, pipeID, prog_cmds);
+	kill_all(proc_cnt, pipeID, cmds);
 	
 		
 	return 0;
 }
 
 
-
+/*
 int parse_commands(char buf[], command *cmd) 
 {	
 	int argcnt = 0;
@@ -233,47 +234,53 @@ int parse_commands(char buf[], command *cmd)
 	*cmd[argcnt] = NULL;
 	return 0;
 }
+*/
+
+/*
 
 		buffer[strcspn(buffer, "\n")] = 0; // Remove trailing newline character.
 		arg_cnt = 0;
 		args = NULL;
 		
-		/* Split buffer string into arguments, delimited by whitespace. */
+		// Split buffer string into arguments, delimited by whitespace.
 		token = strtok(buffer, " ");
 		while (token != NULL) {
+			
+			*/
 			/*
 			if (safe_realloc(&args, (arg_cnt+1)*sizeof(char*))) {
 				fprintf(stderr, "safe_realloc failed\n");
 				exit(EXIT_FAILURE);
 			}*/
 			
-	
+			/*
 			args = realloc(args, (arg_cnt+1)*sizeof(char*));
 			if (args == NULL) {
 				perror("realloc error");
 				exit(EXIT_FAILURE);
-			}
-			
+			}*/
+			/*
 			if (safe_strdup(token, &args[arg_cnt++])) {
 				exit(EXIT_FAILURE);
 			}
 				
+			*/
 			/*
 			if ((args[arg_cnt++] = strdup(token)) == NULL) {
 				perror("strdup error");
 				exit(EXIT_FAILURE);
-			}*/
+			}*//*
 			token = strtok(NULL, " ");
 		}
 		
-		/* Add extra NULL required by exec. */
+		// Add extra NULL required by exec.
 		args = realloc(args, (arg_cnt+1)*sizeof(char*));
 		if (args == NULL) {
 			perror("realloc error");
 			exit(EXIT_FAILURE);
 		}
 		args[arg_cnt] = NULL; 
-		
+		*/
 		//--------------------------------------------------
 
 
@@ -521,13 +528,13 @@ void close_pipes(int pipe_cnt, int **pipeID)
 /**
  * Execute a program with arguments.
  *
- * @param args	Array of strings, representing a program command with arguments.
+ * @param cmd	Array of strings, representing a program command with arguments.
  * @return 		Returns 1 if exec fails.
  */
-int exec_cmd(char **args) 
+int exec_cmd(command cmd) 
 {
-	if (execvp(args[0], args) < 0) {
-		perror(args[0]);
+	if (execvp(cmd[0], cmd) < 0) {
+		perror(cmd[0]);
 		return 1;
 	}
 	return 0; // Never executed, but the compiler complains if line is removed. 	
@@ -575,7 +582,7 @@ int wait_on_children(int proc_cnt)
  * @param pipeID    2D array of pipe file descriptors.
  * @param prog_cmds 2D array of program commands.
  */
-void kill_all(int proc_cnt, int **pipeID, char ***prog_cmds) 
+void kill_all(int proc_cnt, int **pipeID, command *prog_cmds) 
 {
 	
 	
