@@ -149,6 +149,7 @@ int main (int argc, char *argv[])
 	
 	/* Open the (proc_cnt-1) pipes required. */
 	int **pipeID = NULL;
+	
 	if (pipes && open_pipes(proc_cnt-1, &pipeID)) {
 		close_pipes(proc_cnt-1, pipeID);
 		kill_all(proc_cnt, pipeID, cmds);	
@@ -199,150 +200,6 @@ int main (int argc, char *argv[])
 		
 	return 0;
 }
-
-
-/*
-int parse_commands(char buf[], command *cmd) 
-{	
-	int argcnt = 0;
-	char *token;
-	command tmp;
-	*cmd = NULL;
-	
-	// Remove trailing newline character.
-	buf[strcspn(buf, "\n")] = 0; 
-	
-	// Split buffer string into arguments, delimited by whitespace.
-	token = strtok(buf, " ");
-	while (token != NULL) {
-		tmp = realloc(*cmd, (argcnt+1)*sizeof(char *));
-		if (tmp) {
-			*cmd = tmp;
-		} else {
-			perror("realloc");
-			return 1;
-		}
-		if ((*cmd[argcnt] = strdup(token)) == NULL) {
-			perror("strdup");
-			return 1;
-		}
-		
-		token = strtok(NULL, " ");
-		argcnt++;
-	}
-	*cmd = realloc(*cmd, (argcnt+1)*sizeof(char *));
-	*cmd[argcnt] = NULL;
-	return 0;
-}
-*/
-
-/*
-
-		buffer[strcspn(buffer, "\n")] = 0; // Remove trailing newline character.
-		arg_cnt = 0;
-		args = NULL;
-		
-		// Split buffer string into arguments, delimited by whitespace.
-		token = strtok(buffer, " ");
-		while (token != NULL) {
-			
-			*/
-			/*
-			if (safe_realloc(&args, (arg_cnt+1)*sizeof(char*))) {
-				fprintf(stderr, "safe_realloc failed\n");
-				exit(EXIT_FAILURE);
-			}*/
-			
-			/*
-			args = realloc(args, (arg_cnt+1)*sizeof(char*));
-			if (args == NULL) {
-				perror("realloc error");
-				exit(EXIT_FAILURE);
-			}*/
-			/*
-			if (safe_strdup(token, &args[arg_cnt++])) {
-				exit(EXIT_FAILURE);
-			}
-				
-			*/
-			/*
-			if ((args[arg_cnt++] = strdup(token)) == NULL) {
-				perror("strdup error");
-				exit(EXIT_FAILURE);
-			}*//*
-			token = strtok(NULL, " ");
-		}
-		
-		// Add extra NULL required by exec.
-		args = realloc(args, (arg_cnt+1)*sizeof(char*));
-		if (args == NULL) {
-			perror("realloc error");
-			exit(EXIT_FAILURE);
-		}
-		args[arg_cnt] = NULL; 
-		*/
-		//--------------------------------------------------
-
-
-
-/*
-
-int parse_cmds(FILE *input, int *proc_cnt, char ***)
-
-
-	parse_cmd()
-
-
-	int arg_cnt, proc_cnt = 0;
-	char buffer[BUFSIZE], *token, **args;
-	char ***prog_cmds = NULL;  
-	
-	// Read from the specified stream, one line at a time, until EOF. 
-	while (fgets(buffer, BUFSIZE, input) != NULL) {
-		buffer[strcspn(buffer, "\n")] = 0; // Remove trailing newline character.
-		arg_cnt = 0;
-		args = NULL;
-		
-		// Split buffer string into arguments, delimited by whitespace.
-		token = strtok(buffer, " ");
-		while (token != NULL) {
-			args = realloc(args, (arg_cnt+1)*sizeof(char*));
-			if (args == NULL) {
-				perror("realloc error");
-				exit(EXIT_FAILURE);
-			}
-			if ((args[arg_cnt++] = strdup(token)) == NULL) {
-				perror("strdup error");
-				exit(EXIT_FAILURE);
-			}
-			token = strtok(NULL, " ");
-		}
-		
-		// Add extra NULL required by exec.
-		args = realloc(args, (arg_cnt+1)*sizeof(char*));
-		if (args == NULL) {
-			perror("realloc error");
-			exit(EXIT_FAILURE);
-		}
-		args[arg_cnt] = NULL; 
-		
-		// Save the parsed command and arguments.        
-		prog_cmds = realloc(prog_cmds, (proc_cnt+1)*sizeof(char**));
-		if (prog_cmds == NULL) {
-			perror("realloc error");
-			exit(EXIT_FAILURE);
-		}
-		prog_cmds[proc_cnt++] = args;
-	}
-	
-	
-	if (argc == 2) {
-		fclose(input); // Only close stream if reading from file.
-	}
-
-
-
-*/
 
 
 
@@ -401,8 +258,6 @@ void *safe_malloc(size_t size)
 	}
 	return m;
 }
-
-
 
 
 
