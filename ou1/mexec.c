@@ -21,10 +21,19 @@
 #define BUFSIZE 1024
 
 
-typedef char **command;
-typedef command *command_array;
- 
+//typedef char **command;
+//typedef command *command_array;
 
+
+typedef struct command {
+	struct command *next; // Pointer to next program command.
+	char **argv;         // Array of pointers to null-terminated strings. Last item must be NULL.
+} command;
+
+typedef struct list {
+	struct command *head;  // Pointer to the list head.
+	int prog_cnt;          // The total number of program commands.
+} list;
 
 
 int safe_wait(void);
@@ -34,10 +43,11 @@ void *safe_malloc(size_t size);
 
 int safe_strdup(const char *s, char **s2);
 
+int save_token(char **cmd[], char *token, int count);
 
-
-int save_token(command *cmd, char *token, int count);
-
+//int parse_commands(FILE *input, command_array *prog_cmds, int *prog_cnt);
+//int parse_commands(FILE *input, list *l);
+list *parse_commands(FILE *input);
 
 int open_pipe(int *p[]);
 int open_pipes(int n, int ***pipeID);
@@ -45,10 +55,10 @@ int  spawn_children		(int proc_cnt, int *child_no);
 int  dup_pipe			(int proc_cnt, int child_no, int **pipeID);
 void close_pipes		(int pipe_cnt, int **pipeID);
 
-int exec_cmd(command cmd);
+int exec_cmd(char *argv[]);
 
 int  wait_on_children	(int proc_cnt);
-void kill_all			(int proc_cnt, int **pipeID, char ***prog_cmds);
+void kill_all(int proc_cnt, int **pipeID, list *prog_cmds); 
 
 
 
@@ -70,54 +80,27 @@ int main (int argc, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 	
-	int arg_cnt, proc_cnt = 0;
-	char buffer[BUFSIZE], *token = NULL;
 	
-	command cmd;
-	command_array progcmds = NULL;
-	 
-	/* Read from the specified stream, one line at a time, until EOF. */
-	while (fgets(buffer, BUFSIZE, input) != NULL) {
-		
-		//--------------------------------------------------
-		buffer[strcspn(buffer, "\n")] = 0; // Remove trailing newline character.
-		arg_cnt = 0;
-		cmd = NULL;
-		
-		/* Split buffer string into arguments, delimited by whitespace. */
-		token = strtok(buffer, " ");
-		while (token != NULL) {
-			if (save_token(&cmd, token, arg_cnt)) {
-				// do something
-				exit(EXIT_FAILURE);
-			}
-			arg_cnt++;	
-			token = strtok(NULL, " ");
-		}
-		
-		/* Add extra NULL required by exec. */
-		if (save_token(&cmd, NULL, arg_cnt)) {
-			// do something
-			exit(EXIT_FAILURE);
-		}
-				
-		//--------------------------------------------------
-		
-		/* Save the parsed command and arguments. */        
-		progcmds = realloc(progcmds, (proc_cnt+1)*sizeof(command));
-		if (progcmds == NULL) {
-			perror("realloc error");
-			exit(EXIT_FAILURE);
-		}
-		progcmds[proc_cnt++] = cmd;
+	
+	list *prog_cmds = parse_commands(input);
+	if (prog_cmds == NULL) {
+		// do something
+		exit(EXIT_FAILURE);
 	}
+	int proc_cnt = prog_cmds->prog_cnt;
 	
-	
+	/*
+	if (parse_commands(input, &prog_cmds)) {
+		// do something
+		exit(EXIT_FAILURE);
+	}
+	*/
 	if (argc == 2) {
 		fclose(input); // Only close stream if reading from file.
 	}
 	
 	fprintf(stderr, "BOOYA!\n");
+	exit(EXIT_SUCCESS);
 	
 	
 	bool pipes;
@@ -134,7 +117,7 @@ int main (int argc, char *argv[])
 	
 	if (pipes && open_pipes(proc_cnt-1, &pipeID)) {
 		close_pipes(proc_cnt-1, pipeID);
-		kill_all(proc_cnt, pipeID, progcmds);	
+		kill_all(proc_cnt, pipeID, prog_cmds);	
 		exit(EXIT_FAILURE);
 	}
 	
@@ -146,38 +129,38 @@ int main (int argc, char *argv[])
 	int child_no;
 	if (spawn_children(proc_cnt, &child_no) != 0) {
 		close_pipes(proc_cnt-1, pipeID);
-		kill_all(proc_cnt, pipeID, progcmds);
+		kill_all(proc_cnt, pipeID, prog_cmds);
 		exit(EXIT_FAILURE);
 	}
 	
 	/* Duplicate pipe file descriptors to stdin/stdout appropriately for all children. */
 	if (pipes && child_no > -1 && dup_pipe(proc_cnt, child_no, pipeID) != 0) {
 		close_pipes(proc_cnt-1, pipeID);
-		kill_all(proc_cnt, pipeID, progcmds);
+		kill_all(proc_cnt, pipeID, prog_cmds);
 		exit(EXIT_FAILURE);
 	}  
 	
 	/* Close all pipes (parent & children). */
 	close_pipes(proc_cnt-1, pipeID);
 	   
-	/* Exec on all children. */
-	if (child_no > -1 && exec_cmd(progcmds[child_no]) != 0) {
+	/* Exec on all children. */ 
+	if (child_no > -1 && exec_cmd(prog_cmds[child_no]) != 0) { // EXEC NEEDS TO BE RE-DONE 
 		//close_pipes(proc_cnt-1, pipeID);
-		kill_all(proc_cnt, pipeID, progcmds);
+		kill_all(proc_cnt, pipeID, prog_cmds);
 		exit(EXIT_FAILURE);
 	} 
 	
 	/* Let parent wait on all children. */	
 	if (wait_on_children(proc_cnt)) {
 		//close_pipes(proc_cnt-1, pipeID);
-		kill_all(proc_cnt, pipeID, progcmds);
+		kill_all(proc_cnt, pipeID, prog_cmds);
 		exit(EXIT_FAILURE);
 	}
 
 	//close_pipes(proc_cnt-1, pipeID);
 
 	/* Free dynamically allocated memory */
-	kill_all(proc_cnt, pipeID, progcmds);
+	kill_all(proc_cnt, pipeID, prog_cmds);
 	
 		
 	return 0;
@@ -212,14 +195,15 @@ int safe_strdup(const char *s, char **s2)
  * @count count Current length of the command, excluding the token.
  * @return      0 on success.
  */
-int save_token(command *cmd, char *token, int count) 
+int save_token(char **cmd[], char *token, int count) 
 {
-	command tmp = realloc(*cmd, (count+1)*sizeof(*cmd));
+	char **tmp = realloc(*cmd, (count+1)*sizeof(char*));
 	if (tmp == NULL) {
 		perror("realloc error");
 		return 1;
 	}
 	*cmd = tmp;
+	(*cmd)[count] = NULL; // REMOVE THIS ???
 	if (token == NULL) {
 		(*cmd)[count] = NULL;
 	} else {
@@ -233,65 +217,95 @@ int save_token(command *cmd, char *token, int count)
 }
 
 
-
-
-
-int parse_commands(command_array *progcmds, FILE *input) {
-
-	int arg_cnt, proc_cnt = 0;
-	char buffer[BUFSIZE];
-	char *token = NULL;
-	command cmd;
+/*
+int parse_commands(FILE *input, list *l) 
+{
 	
-	*progcmds = NULL;
+	int *val = malloc(sizeof(int));
+	*val = 5;
 	
-	/* Read from the specified stream, one line at a time, until EOF. */
+	list_insert(l, val, list_end(l));
+	
+	return 0;
+}
+
+*/
+
+
+list *parse_commands(FILE *input) 
+{
+	int arg_cnt; 
+	char buffer[BUFSIZE], *token;
+	char **cmd;
+	
+	command *current;
+	// int p_cnt = 0;
+	// *prog_cmds = NULL;
+	
+	list *l = calloc(1, sizeof(list));
+	if (l == NULL) {
+		perror("calloc");
+		return NULL;	
+	}
+	l->prog_cnt = 0;
+	
+	l->head = calloc(1, sizeof(command));
+	if (l->head == NULL) {
+		perror("calloc");
+		return NULL;
+	}
+	current = l->head;
+	
+	// Read from the specified stream, one line at a time, until EOF.
 	while (fgets(buffer, BUFSIZE, input) != NULL) {
 		
-		buffer[strcspn(buffer, "\n")] = 0; // Remove trailing newline character.
 		arg_cnt = 0;
 		cmd = NULL;
+		buffer[strcspn(buffer, "\n")] = 0; // Remove trailing newline character.
 		
-		/* Split buffer string into arguments, delimited by whitespace. */
+		// Split buffer string into arguments, delimited by whitespace. 
 		token = strtok(buffer, " ");
 		while (token != NULL) {
 			if (save_token(&cmd, token, arg_cnt)) {
-				// do something
-				exit(EXIT_FAILURE);
+				// DO SOMETHING ELSE; KILL ALL
+				return NULL; 
 			}
 			arg_cnt++;
 			token = strtok(NULL, " ");
 		}
 		
-		/* Add extra NULL required by exec. */
+		// Add extra NULL required by exec. 
 		if (save_token(&cmd, NULL, arg_cnt)) {
-			// do something
-			exit(EXIT_FAILURE);
+			// DO SOMETHING ELSE, KILL ALL
+			return NULL;
 		}
 
-		/* Save the parsed command and arguments. */        
-		progcmds // REDO THIS HERE PROPERLY 
+		// Save the parsed command and arguments.      
 		
-		= realloc(*progcmds, (proc_cnt+1)*sizeof(command));
-		if (*progcmds == NULL) {
-			perror("realloc error");
-			exit(EXIT_FAILURE);
+		current->next = calloc(1, sizeof(command));
+		if (current->next == NULL) {
+			perror("calloc");
+			// DO SOMETHING ELSE, KILL ALL
+			return NULL;
 		}
-		progcmds[proc_cnt++] = cmd;	
+		current->next->argv = cmd;
+		(l->prog_cnt)++;
+		current = current->next;
 	}
+	return l;
 }
 
 
 
 
-
+/*
 
 int arg_cnt, proc_cnt = 0;
 	char buffer[BUFSIZE], *token = NULL;
 	
 	command cmd, *progcmds = NULL;
 	 
-	/* Read from the specified stream, one line at a time, until EOF. */
+	// Read from the specified stream, one line at a time, until EOF. 
 	while (fgets(buffer, BUFSIZE, input) != NULL) {
 		
 		//--------------------------------------------------
@@ -299,7 +313,7 @@ int arg_cnt, proc_cnt = 0;
 		arg_cnt = 0;
 		cmd = NULL;
 		
-		/* Split buffer string into arguments, delimited by whitespace. */
+		// Split buffer string into arguments, delimited by whitespace.
 		token = strtok(buffer, " ");
 		while (token != NULL) {
 			if (save_token(&cmd, token, arg_cnt)) {
@@ -310,7 +324,7 @@ int arg_cnt, proc_cnt = 0;
 			token = strtok(NULL, " ");
 		}
 		
-		/* Add extra NULL required by exec. */
+		// Add extra NULL required by exec. 
 		if (save_token(&cmd, NULL, arg_cnt)) {
 			// do something
 			exit(EXIT_FAILURE);
@@ -318,7 +332,7 @@ int arg_cnt, proc_cnt = 0;
 				
 		//--------------------------------------------------
 		
-		/* Save the parsed command and arguments. */        
+		// Save the parsed command and arguments.        
 		progcmds = realloc(progcmds, (proc_cnt+1)*sizeof(command));
 		if (progcmds == NULL) {
 			perror("realloc error");
@@ -328,7 +342,7 @@ int arg_cnt, proc_cnt = 0;
 	}
 	
 
-
+*/
 
 
 
@@ -479,13 +493,13 @@ void close_pipes(int pipe_cnt, int **pipeID)
 /**
  * Execute a program with arguments.
  *
- * @param cmd	Array of strings, representing a program command with arguments.
+ * @param argv	Array of pointers to null-terminated strings, representing program arguments.
  * @return 		Returns 1 if exec fails.
  */
-int exec_cmd(command cmd) 
+int exec_cmd(char *argv[]) 
 {
-	if (execvp(cmd[0], cmd) < 0) {
-		perror(cmd[0]);
+	if (execvp(argv[0], argv) < 0) {
+		perror(argv[0]);
 		return 1;
 	}
 	return 0; // Never executed, but the compiler complains if line is removed. 	
@@ -533,18 +547,29 @@ int wait_on_children(int proc_cnt)
  * @param pipeID    2D array of pipe file descriptors.
  * @param prog_cmds 2D array of program commands.
  */
-void kill_all(int proc_cnt, int **pipeID, command *prog_cmds) 
+void kill_all(int proc_cnt, int **pipeID, list *prog_cmds) 
 {
 	
 	
 	/* Freeing dynamically allocated memory */ 
 	
+	
+	command *next;
+	command *p = prog_cmds->head;
+	
+	while (p->next != NULL) {
+		char **cmd = p->next->argv;
+		for (int i = 0; cmd[i] != NULL; i++) {
+			free(cmd[i]);
+		}
+		next = p->next;
+		free(p);
+		p = next;
+	}
+	free(p);
+	free(prog_cmds);
+	
 	/*
-	if (prog_cmds) {
-		
-	
-	}*/
-	
 	for (int i = 0; i < proc_cnt; i++) {
 		int j = 0; 
 		while (prog_cmds[i][j] != NULL) {
@@ -554,7 +579,7 @@ void kill_all(int proc_cnt, int **pipeID, command *prog_cmds)
 		free(prog_cmds[i]);
 	}
 	free(prog_cmds);
-	
+	*/
 
 	// --------
 	if (pipeID) {

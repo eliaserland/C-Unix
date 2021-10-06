@@ -10,7 +10,7 @@ CFLAGS = -g -std=gnu11 -Wall -Wextra -Wpedantic -Wmissing-declarations -Wmissing
 TARGET = mexec
 
 SRC = $(TARGET:=.c)
-OBJ = $(TARGET:=.o)
+OBJ = $(SRC:.c=.o)
 
 all: $(TARGET)
 
