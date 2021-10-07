@@ -9,17 +9,19 @@ CFLAGS = -g -std=gnu11 -Wall -Wextra -Wpedantic -Wmissing-declarations -Wmissing
 
 TARGET = mexec
 
-SRC = $(TARGET:=.c)
+SRC = $(TARGET:=.c) list.c
 OBJ = $(SRC:.c=.o)
 
-all: $(TARGET)
+all: mexec
 
-$(TARGET): $(OBJ)
+mexec: mexec.o list.o
 	$(CC) -o $@ $^ $(LDFLAGS) $(CFLAGS) 
 
-$(OBJ): $(SRC)
+mexec.o: mexec.c list.h
 	$(CC) -c $^ $(CFLAGS)
-	
+
+list.o: list.c list.h
+	$(CC) -c $^ $(CFLAGS)
 clean: 
 	-rm -f $(TARGET) $(OBJ)
 	
