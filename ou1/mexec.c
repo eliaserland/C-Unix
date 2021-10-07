@@ -81,7 +81,7 @@ int main (int argc, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 	if (argc == 2) {
-		fclose(input); // Only close stream if reading from file.
+		fclose(input); // Only close stream if reading from file. ALSO DO THIS IF EXIT_FAILURE AFTER parse_commands().
 	}
 	
 	process_count = list_length(prog_cmds);
@@ -110,7 +110,7 @@ int main (int argc, char *argv[])
 	}
 	
 	/* Duplicate pipe file descriptors to stdin/stdout appropriately for all children. */
-	if (pipes && child_no > -1 && dup_pipe(process_count, child_no, pipeID)) {
+	if (pipe_count && child_no > -1 && dup_pipe(process_count, child_no, pipeID)) {
 		close_pipes(pipe_count, pipeID);
 		kill_all(pipeID, prog_cmds);
 		exit(EXIT_FAILURE);

@@ -1,10 +1,22 @@
+/*
+ * Implementation of a generic directed list.  
+ *
+ * Author: Elias Olofsson (tfy17eon@cs.umu.se)
+ * 
+ * Based on earlier code by: 
+ *         Niclas Borlin (niclas@cs.umu.se) 
+ *         Adam Dahlgren Lindstrom (dali@cs.umu.se) 
+ *         Lars Karlsson (larsk@cs.umu.se) 
+ *
+ * Version information:
+ *   2021-09-21: v1.0, first public version.   
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include "list.h"
 
-
-// ======= Internal data types =======
-
+// ============== Internal data types ==============
 struct cell {
 	struct cell *next; 	// Pointer to next list element.
 	void *value;        // Pointer to the value of the list element.
@@ -18,7 +30,6 @@ struct list {
 };
 
 // ======= Internal function implementations ======= 
-
 /**
  * list_empty() - Create an empty list.
  * @free_func: Pointer to a function (or NULL) to be called to deallocate
