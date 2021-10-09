@@ -107,7 +107,7 @@ att dess utdata går att läsa in direkt i ett program så som MATLAB.
 Utöver ovanstående nämnda beskrivning ska även programmet hålla sig till
 kraven:
 
-- Programmet ska ha samma output som `du -s -l -B1024 {fil} [filer ...]`
+- Programmet ska ha samma output som `du -s -l -B512 {fil} [filer ...]`
   förutom antalet blanka tecken mellan kolumner.
 - Lösningen får *inte* använda `ftw`.
 - Programmet ska använda sig av:
@@ -142,19 +142,19 @@ Det är helt frivilling att vara med och det påverkar inte ert betyg negativt p
 Tävlingen kommer att gå ut på att vi mäter erat programs prestanda. Det som kommer mätas är wall-clock time precis som ni gör när ni analyserar er lösning för rapporten.
 Hur vi gör denna mätning specifieras inte men vi kommer mäta ert program väldigt många gånger med ett specifikt antal trådar som är högre än vad maskinen har att ge.
 Resultaten kommer sedan läggas upp i en rankad tabell/graf på kursen gitlab med ert namn och resultat.
-De flesta av er har troligtvis aldrig optimiserat ett program förrut.
 
 För att vara med i tävlingen ska ni lämna in en EXTRA makefile med namnet 'makefile\_competition'
 Den ska kompilera ert tävlingsprogram som ska heta mdu\_competition.
 Ni kan antingen bara återanvända er vanliga lösning i tävlingen eller skapa nya .c filer.
-Skapar ni nya filer så bryr vi oss inte om kodkvaliten på dessa filer utan ni är fria att optimisera hur ni vill. Notera att detta gällar bara de filer som inte används till den orginella inlämningen.
+Skapar ni nya filer så bryr vi oss inte om kodkvaliten på dessa filer utan ni är fria att optimisera hur ni vill. Notera att detta gällar bara de filer som inte används till den 'riktiga' inlämningen.
 
-Sätt ni kan testa att optimisera programmet på. Kom ihåg att mycket av detta är överkurs/onödigt så känn absolut inte att ni måste testa allt.
+De flesta av er har troligtvis aldrig optimiserat ett program förrut.
+Så här har ni några sätt ni kan testa att optimisera programmet på. Kom ihåg att mycket av detta är överkurs/onödigt så känn absolut inte att ni måste testa allt.
 - Skriva en optimal algoritm gällande hur ni låser / öppnar trådar.
 - Mäta funktioner hur lång tid specifika funktioner / delar av er kod tar så ni vet vart ni behöver förbättra koden. Funktionerna i \<time.h\> fungera ok här.
 - Se till att en tråd alltid har något att göra.
-- Ha programmets minne/cache i åtanke. https://en.wikipedia.org/wiki/Locality\_of\_reference
-- Undvik att förvirra er processors branch predictor https://en.wikipedia.org/wiki/Branch\_predictor
+- Ha programmets minne / cache i åtanke. https://en.wikipedia.org/wiki/Locality_of_reference
+- Undvik att förvirra er processors branch predictor https://en.wikipedia.org/wiki/Branch_predictor
 - Använda er utav mer avancerade keywords som inline och register (är ni smartare än kompilatorn?)
 - Ta bort all error checking (AHHHHHHHHHHHHHHHHHHHH). Går att göra på ett bra sätt via preprocessor defines dock.
 - Undersök avancerade GCC flaggor. https://caiorss.github.io/C-Cpp-Notes/compiler-flags-options.html
