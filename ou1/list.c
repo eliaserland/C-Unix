@@ -1,5 +1,11 @@
 /*
- * Implementation of a generic directed list.  
+ * Implementation of a generic directed list. Utilized for the implementation 
+ * of OU1 for C programming and Unix, Umea University Autumn 2021. 
+ * 
+ * Heavily inspired of the directed and undirected list implementations provided
+ * in the "Datastructures and algorithms" course at the Department of Computing 
+ * Science, Umea University. Some modifications, additional methods and error 
+ * checking has been added compared to the original work of previous authors. 
  *
  * Author: Elias Olofsson (tfy17eon@cs.umu.se)
  * 
@@ -9,7 +15,7 @@
  *         Lars Karlsson (larsk@cs.umu.se) 
  *
  * Version information:
- *   2021-09-21: v1.0, first public version.   
+ *   2021-10-10: v1.0, first public version.   
  */
 
 #include <stdio.h>
@@ -81,7 +87,24 @@ int list_length(list *l)
 {
 	return l->length;
 }
-	
+
+/**
+ * list_is_member() - Check if a given position is a member of a list.
+ * @l: List to inspect.
+ * @p: The list position to check.
+ *
+ * Returns: True if p is a member of the list l.
+ */
+bool list_is_member(const list *l, const list_pos p) 
+{
+	for (list_pos tmp = list_first(l); tmp != NULL; tmp = tmp->next) {
+		if (p == tmp) {
+			return true;
+		}
+	}
+	return false;
+}
+
 /**
  * list_is_end() - Check if a given position is at the end of a list.
  * @l: List to inspect.
@@ -91,13 +114,13 @@ int list_length(list *l)
  */
 bool list_is_end(const list *l, const list_pos p)
 {
-	return p->next == NULL;
+	return list_is_member(l, p) && p->next == NULL;
 }
 
 /**
  * list_first() - Return the first position of a list, i.e. the position of the 
  *                first element in the list.
- * @l: List to inspect.
+ * @l: List to inspect.list_is_end
  *
  * Returns: The first position in the given list.
  */
@@ -286,8 +309,10 @@ list_pos list_remove(list *l, const list_pos p)
  */
 void list_kill(list *l)
 {
+	if (l == NULL) {
+		return;
+	}
 	// Use public functions to traverse the list.
-
 	// Start with the first element (will be defined even for an empty list).
 	list_pos p = list_first(l);
 
@@ -300,5 +325,4 @@ void list_kill(list *l)
 	free(l->head);
 	free(l);    
 }
-
 

@@ -1,8 +1,27 @@
+/*
+ * Declaration of a generic directed list. Utilized for the implementation 
+ * of OU1 for C programming and Unix, Umea University Autumn 2021. 
+ * 
+ * Heavily inspired of the directed and undirected list implementations provided
+ * in the "Datastructures and algorithms" course at the Department of Computing 
+ * Science, Umea University. Some modifications, additional methods and error 
+ * checking has been added compared to the original work of previous authors. 
+ *
+ * Author: Elias Olofsson (tfy17eon@cs.umu.se)
+ * 
+ * Based on earlier code by: 
+ *         Niclas Borlin (niclas@cs.umu.se) 
+ *         Adam Dahlgren Lindstrom (dali@cs.umu.se) 
+ *         Lars Karlsson (larsk@cs.umu.se) 
+ *
+ * Version information:
+ *   2021-10-10: v1.0, first public version.   
+ */
+
 #ifndef __LIST_H
 #define __LIST_H
 
 #include <stdbool.h>
-
 
 // ========== Public data types ============
 
@@ -51,6 +70,15 @@ int list_length(list *l);
  * Returns: True if p is at the end of the list.
  */
 bool list_is_end(const list *l, const list_pos p);
+
+/**
+ * list_is_member() - Check if a given position is a member of a list.
+ * @l: List to inspect.
+ * @p: The list position to check.
+ *
+ * Returns: True if p is a member of the list l.
+ */
+bool list_is_member(const list *l, const list_pos p);
 
 /**
  * list_first() - Return the first position of a list, i.e. the position of the 

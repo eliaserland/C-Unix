@@ -4,24 +4,22 @@
 #   2021-09-21: v1.0, first public version. 
 
 CC = gcc
-CFLAGS = -g -std=gnu11 -Wall -Wextra -Wpedantic -Wmissing-declarations -Wmissing-prototypes -Wold-style-definition #-Werror
+CFLAGS = -g -std=gnu11 -Werror -Wall -Wextra -Wpedantic -Wmissing-declarations -Wmissing-prototypes -Wold-style-definition
 #LDFLAGS = 
 
 TARGET = mexec
 
-SRC = $(TARGET:=.c) list.c
-OBJ = $(SRC:.c=.o)
+SRC = $(TARGET:=.c)
+OBJ = $(TARGET:=.o)
 
-all: mexec
+all: $(TARGET)
 
-mexec: mexec.o list.o list.h
-	$(CC) -o $@ $^ $(LDFLAGS)
+$(TARGET): $(OBJ)
+	$(CC) -o $@ $^ $(LDFLAGS) $(CFLAGS) 
 
-mexec.o: mexec.c
+$(OBJ): $(SRC)
 	$(CC) -c $^ $(CFLAGS)
-
-list.o: list.c 
-	$(CC) -c $^ $(CFLAGS)
+	
 clean: 
 	-rm -f $(TARGET) $(OBJ)
 	

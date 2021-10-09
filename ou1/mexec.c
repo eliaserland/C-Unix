@@ -6,7 +6,10 @@
  * Author: Elias Olofsson (tfy17eon@cs.umu.se) 
  *
  * Version information:
- *   2021-09-21: v1.0, first public version.   
+ *   2021-09-21: v1.0, first public version.
+ *   2021-10-10: v2.0. Split the program up into individual functions, such that
+ *        not all is contained in the main function. Improved error handling 
+ *        such that no memory leak occur if problems are encountered at runtime. 
  */
 
 #include <stdio.h>
@@ -21,32 +24,18 @@
 #define WRITE_END 1
 #define BUFSIZE 1024
 
-
-
-
-void free_cmd(void *ptr);
-
-int safe_wait(void);
-
-
-
-int safe_strdup(const char *s, char **s2);
-
-int save_token(char **cmd[], char *token, int count);
-
-list *parse_commands(FILE *input);
-
-int open_pipe(int *p[]);
-int open_pipes(int n, int ***pipeID);
-int  spawn_children		(int proc_cnt, int *child_no);
-int  dup_pipe			(int proc_cnt, int child_no, int **pipeID);
-void close_pipes		(int pipe_cnt, int **pipeID);
-
-int exec_cmd(char *argv[]);
-
-int  wait_on_children	(int proc_cnt);
-void kill_all(int **pipeID, list *prog_cmds);  
-
+int   save_token      (char **cmd[], char *token, int count); 
+list *parse_commands  (FILE *input);
+int   spawn_children  (int proc_cnt, int *child_no);
+int   dup_pipe        (int proc_cnt, int child_no, int **pipeID);
+int   open_pipe       (int *p[]); 
+int   open_pipes      (int n, int ***pipeID);
+void  close_pipes     (int n, int **pipeID);
+int   exec_cmd        (char *argv[]);
+int   safe_wait       (void);
+int   wait_on_children(int n);
+void  kill_all        (int **pipeID, list *prog_cmds);
+void  free_cmd        (void *ptr);
 
 
 int main (int argc, char *argv[]) 
@@ -71,82 +60,68 @@ int main (int argc, char *argv[])
 	int pipe_count = 0;
 	int child_no;
 	int **pipeID = NULL;
+	char **cmd;
 	list *prog_cmds;
 	
-	
-	
-	prog_cmds = parse_commands(input);
-	if (prog_cmds == NULL) {
-		// do something
-		exit(EXIT_FAILURE);
-	}
-	if (argc == 2) {
-		fclose(input); // Only close stream if reading from file. ALSO DO THIS IF EXIT_FAILURE AFTER parse_commands().
-	}
-	
-	process_count = list_length(prog_cmds);
-	pipe_count = process_count-1;
-	
-	
-
-	// -------- Can use kill_all() from here on ------------
-		
-	
-	
-	/* Open pipes if required. */	
-	if (pipe_count && open_pipes(pipe_count, &pipeID)) {
-		close_pipes(pipe_count, pipeID);
-		kill_all(pipeID, prog_cmds);	
-		exit(EXIT_FAILURE);
-	}
-	
-
-
-	/* Create the children processes */
-	if (spawn_children(process_count, &child_no)) {
-		close_pipes(pipe_count, pipeID);
-		kill_all(pipeID, prog_cmds);
-		exit(EXIT_FAILURE);
-	}
-	
-	/* Duplicate pipe file descriptors to stdin/stdout appropriately for all children. */
-	if (pipe_count && child_no > -1 && dup_pipe(process_count, child_no, pipeID)) {
-		close_pipes(pipe_count, pipeID);
-		kill_all(pipeID, prog_cmds);
-		exit(EXIT_FAILURE);
-	}  
-	
-	/* Close all pipes (parent & children). */
-	close_pipes(pipe_count, pipeID);
-	   
-	/* Exec on all children. */ 
-	if (child_no > -1) { 
-		char **cmd = list_inspect(prog_cmds, list_index(prog_cmds, child_no));
-		if (exec_cmd(cmd) != 0) {
-			//close_pipes(pipe_count, pipeID);
-			kill_all(pipeID, prog_cmds);
-			exit(EXIT_FAILURE);
+	do {
+		prog_cmds = parse_commands(input);
+		if (argc == 2) {
+			fclose(input); // Only close stream if reading from file.
+		}
+		if (prog_cmds == NULL) {
+			break;
 		}
 		
-	} 
-	
-	/* Let parent wait on all children. */	
-	if (wait_on_children(process_count)) {
-		//close_pipes(pipe_count, pipeID);
-		kill_all(pipeID, prog_cmds);
-		exit(EXIT_FAILURE);
-	}
-
-	//close_pipes(pipe_count, pipeID);
-
-	/* Free dynamically allocated memory */
-	kill_all(pipeID, prog_cmds);
-	
+		/* No. of processes and pipes required. */
+		process_count = list_length(prog_cmds);
+		pipe_count = process_count-1;
 		
-	return 0;
+		/* Open pipes, if required. */	
+		if (pipe_count && open_pipes(pipe_count, &pipeID)) {
+			break;
+		}
+		
+		/* Create the children processes */
+		if (spawn_children(process_count, &child_no)) {
+			break;
+		}
+		
+		/* Duplicate pipe file descriptors to stdin/stdout for all children. */
+		if (pipe_count && child_no > -1) {
+			if (dup_pipe(process_count, child_no, pipeID)) {
+				break;
+			}
+		}  
+		
+		/* Close all pipes (parent & children). */
+		close_pipes(pipe_count, pipeID);
+		   
+		/* Execute program command in all children. */ 
+		if (child_no > -1) { 
+			cmd = list_inspect(prog_cmds, list_index(prog_cmds, child_no));
+			if (exec_cmd(cmd)) {
+				break;
+			}
+		} 
+		
+		/* Let parent wait on all children. */	
+		if (wait_on_children(process_count)) {
+			break;	
+		}
+
+		/* Free dynamically allocated memory */
+		kill_all(pipeID, prog_cmds);
+	
+		/* Normal exit. */
+		return 0;
+	
+	} while (0);
+	
+	/* Error handling. */
+	close_pipes(pipe_count, pipeID);
+	kill_all(pipeID, prog_cmds);
+	exit(EXIT_FAILURE);
 }
-
-
 
 /**
  * save_token() - Copy and save a string to a pre-existing array of strings. 
@@ -183,7 +158,8 @@ int save_token(char **cmd[], char *token, int count)
  * @input: The specified file input stream.
  * 
  * Returns:	A list structure containing parsed program commands. Each list 
- *          element points to an array of null-terminated strings.  
+ *          element points to an array of null-terminated strings. Returns NULL
+ *          on error.
  */
 list *parse_commands(FILE *input) 
 {
@@ -192,10 +168,13 @@ list *parse_commands(FILE *input)
 	char **cmd;
 	
 	list *l = list_empty(free_cmd);
+	if (l == NULL) {
+		return NULL;
+	}
 	
 	// Read from the specified stream, one line at a time, until EOF.
 	while (fgets(buffer, BUFSIZE, input) != NULL) {
-		
+	
 		cmd = NULL;
 		arg_cnt = 0;
 		buffer[strcspn(buffer, "\n")] = 0; // Remove trailing newline character.
@@ -204,7 +183,6 @@ list *parse_commands(FILE *input)
 		token = strtok(buffer, " ");
 		while (token != NULL) {
 			if (save_token(&cmd, token, arg_cnt)) {
-				// DO SOMETHING ELSE; KILL ALL
 				return NULL; 
 			}
 			arg_cnt++;
@@ -213,7 +191,6 @@ list *parse_commands(FILE *input)
 		
 		// Add extra NULL required by exec. 
 		if (save_token(&cmd, NULL, arg_cnt)) {
-			// DO SOMETHING ELSE, KILL ALL
 			return NULL;
 		}
 
@@ -287,7 +264,6 @@ int dup_pipe(int proc_cnt, int child_no, int **pipeID)
 	perror("dup2");
 	return 1;
 }	
-
 
 /**
  * open_pipe() - Dynamically allocate memory and open a pipe.
@@ -444,6 +420,4 @@ void free_cmd(void *ptr)
 	}
 	free(cmd);	
 }
-
-
 
