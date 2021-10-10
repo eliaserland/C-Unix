@@ -1,0 +1,8 @@
+#!/bin/sh
+
+if ls /finnsinte;
+then
+    echo "... och där var innehållet i /finnsinte"
+else
+    echo "Fel vid listning av /finnsinte"
+fi

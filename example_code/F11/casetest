@@ -1,0 +1,13 @@
+#!/bin/sh
+
+maskin=`uname -n`
+case $maskin in
+  peppar) echo "Sun-server" ;;
+  jumjum) echo "Sun-arbetsstation" ;;
+  garnet) echo "SGI-arbetsstation" ;;
+  poseidon) echo "Mac" ;;
+  fuggle) echo "Linux" ;;
+  *) echo "Okänd"
+      exit
+      ;;
+esac

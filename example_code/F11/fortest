@@ -1,0 +1,6 @@
+#!/bin/sh
+
+for n in This is a list
+do
+  echo $n
+done

@@ -1,0 +1,51 @@
+#!/bin/bash
+
+if [ $# -lt 2 ]; then
+	echo 1>&2 "Usage: $0 försättsblad.pdf tenta.pdf"
+	exit 1
+fi
+
+tot_pages=`pdfinfo $1 | grep Pages | cut -d: -f2`
+nr_pages=2
+
+fblad="/tmp/$(basename $1)_$$.ps"
+tenta="/tmp/$(basename $2)_$$.ps"
+exemplar="/tmp/tmp_$$.ps"
+
+
+if ! (pdf2ps $1 $fblad); then
+	echo 1>&2 "Error using pdf2ps on $1"
+	exit 1;
+fi
+
+if ! (pdf2ps $2 $tenta); then
+	rm -rf $fblad
+	echo 1>&2 "Error using pdf2ps on $2"
+	exit 1;
+fi
+
+# Skriv ut tentavaktsbladet
+psselect -p1-1 $fblad | lpr -Ptrenter
+
+# Skriv ut försättsblad ihophäftat med tentan (en utskrift per kodnummer)
+i=2
+c=0
+while [ $i -lt $tot_pages ]
+do
+	let c=$c+1
+	let j=$i+$nr_pages-1
+	psselect -p$i-$j $fblad > $exemplar
+	psmerge $exemplar $tenta | lpr -Ptrenter -o Duplex=Simplex -o Stapling=UL
+	let i=$i+2
+	rm -rf $exemplar
+
+	if [ $c -eq 10 ]; then
+		echo "Press ENTER to continue"
+		read
+		let c=0
+	fi
+done
+
+
+rm -rf $fblad $tenta $exemplar
+

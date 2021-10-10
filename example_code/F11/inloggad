@@ -1,0 +1,7 @@
+#!/bin/sh
+
+until who | grep "^testanv" >/dev/null
+do
+  sleep 60
+done
+echo "Nu har Testanvandaren loggat in"

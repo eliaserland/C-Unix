@@ -1,0 +1,4 @@
+git remote add upstream git@git.cs.umu.se:courses/something
+
+git checkout master
+git pull upstream master

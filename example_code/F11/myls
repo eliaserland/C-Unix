@@ -1,0 +1,21 @@
+#!/bin/sh
+
+if [ $# -lt 1 ]; then
+    echo 1>&2 "Usage: $0 [-l] filename [filename...]"
+    exit 1
+fi
+
+if [ $1 = "-l" ]; then
+    command="ls -l"
+    shift
+else
+    command="ls"
+fi
+
+while [ $# -ge 1 ]; do
+    $command $1
+    shift
+done
+
+exit 0;
+

@@ -1,0 +1,10 @@
+#!/usr/local/bin/perl
+
+@document = <>;
+sub mysort { (split /:/, $a)[2] <=> (split /:/, $b)[2] }
+
+@sorteddoc = sort mysort @document;
+foreach $entry (@sorteddoc) {
+ @tmp = split /:/, $entry;
+ print $tmp[2], ":", $tmp[0], "\n";
+}
