@@ -1,21 +1,21 @@
 /*
- * Implementation of a generic directed list. Utilized for the implementation 
- * of OU1 for C programming and Unix, Umea University Autumn 2021. 
- * 
+ * Implementation of a generic directed list. Utilized for the implementation
+ * of OU1 for C programming and Unix, Umea University Autumn 2021.
+ *
  * Heavily inspired of the directed and undirected list implementations provided
- * in the "Datastructures and algorithms" course at the Department of Computing 
- * Science, Umea University. Some modifications, additional methods and error 
- * checking has been added compared to the original work of previous authors. 
+ * in the "Datastructures and algorithms" course at the Department of Computing
+ * Science, Umea University. Some modifications, additional methods and error
+ * checking has been added compared to the original work of previous authors.
  *
  * Author: Elias Olofsson (tfy17eon@cs.umu.se)
- * 
- * Based on earlier code by: 
- *         Niclas Borlin (niclas@cs.umu.se) 
- *         Adam Dahlgren Lindstrom (dali@cs.umu.se) 
- *         Lars Karlsson (larsk@cs.umu.se) 
+ *
+ * Based on earlier code by:
+ *         Niclas Borlin (niclas@cs.umu.se)
+ *         Adam Dahlgren Lindstrom (dali@cs.umu.se)
+ *         Lars Karlsson (larsk@cs.umu.se)
  *
  * Version information:
- *   2021-10-10: v1.0, first public version.   
+ *   2021-10-10: v1.0, first public version.
  */
 
 #include <stdio.h>
@@ -24,18 +24,18 @@
 
 // ============== Internal data types ==============
 struct cell {
-	struct cell *next; 	// Pointer to next list element.
-	void *value;        // Pointer to the value of the list element.
+	struct cell *next; // Pointer to next list element.
+	void *value;       // Pointer to the value of the list element.
 };
 
 struct list {
-	struct cell *head;  		// Pointer to list head.
-	struct cell *last;			// Pointer to last element of the list.
-	int length;            		// Length of list.
-	free_function free_func;	// Function to deallocate list values.
+	struct cell *head;       // Pointer to list head.
+	struct cell *last;       // Pointer to last element of the list.
+	int length;              // Length of list.
+	free_function free_func; // Function to deallocate list values.
 };
 
-// ======= Internal function implementations ======= 
+// ======= Internal function implementations =======
 /**
  * list_empty() - Create an empty list.
  * @free_func: Pointer to a function (or NULL) to be called to deallocate
@@ -43,7 +43,7 @@ struct list {
  *
  * Returns: A pointer to the new list, or NULL on error.
  */
-list *list_empty(free_function free_func) 
+list *list_empty(free_function free_func)
 {
 	// Allocate memory for the list structure.
 	list *l = calloc(1, sizeof(list));
@@ -51,7 +51,7 @@ list *list_empty(free_function free_func)
 		perror("calloc");
 		return NULL;
 	}
-	
+
 	// Allocate memory for the list head.
 	l->head = calloc(1, sizeof(struct cell));
 	if (l->head == NULL) {
@@ -83,7 +83,7 @@ bool list_is_empty(const list *l)
  *
  * Returns: The number of elements contained in the list.
  */
-int list_length(list *l) 
+int list_length(list *l)
 {
 	return l->length;
 }
@@ -95,7 +95,7 @@ int list_length(list *l)
  *
  * Returns: True if p is a member of the list l.
  */
-bool list_is_member(const list *l, const list_pos p) 
+bool list_is_member(const list *l, const list_pos p)
 {
 	for (list_pos tmp = list_first(l); tmp != NULL; tmp = tmp->next) {
 		if (p == tmp) {
@@ -118,7 +118,7 @@ bool list_is_end(const list *l, const list_pos p)
 }
 
 /**
- * list_first() - Return the first position of a list, i.e. the position of the 
+ * list_first() - Return the first position of a list, i.e. the position of the
  *                first element in the list.
  * @l: List to inspect.list_is_end
  *
@@ -130,7 +130,7 @@ list_pos list_first(const list *l)
 }
 
 /**
- * list_last() - Return the last position of a list, i.e. the position of the 
+ * list_last() - Return the last position of a list, i.e. the position of the
  *               last element in the list.
  * @l: List to inspect.
  *
@@ -165,11 +165,11 @@ list_pos list_next(const list *l, const list_pos p)
  *
  * Returns: Pointer to the element, or NULL on error.
  */
-list_pos list_index(const list *l, int idx) 
+list_pos list_index(const list *l, int idx)
 {
 	if (list_is_empty(l)) {
 		fprintf(stderr, "list_index: Warning: List is empty.\n");
-		return NULL; 
+		return NULL;
 	}
 	list_pos p = list_first(l);
 	for (int i = 0; i < idx; i++) {
@@ -186,10 +186,10 @@ list_pos list_index(const list *l, int idx)
  * @l: List to inspect.
  * @p: Any valid position in the list, except the last.
  *
- * Returns: The value at the given position as a void pointer. NOTE: Returns 
+ * Returns: The value at the given position as a void pointer. NOTE: Returns
             NULL if the given position is the last position of the list.
  */
-void *list_inspect(const list *l, const list_pos p) 
+void *list_inspect(const list *l, const list_pos p)
 {
 	if (list_is_end(l, p)) {
 		fprintf(stderr,"list_inspect: Warning: Trying to inspect position at end of list.\n");
@@ -217,14 +217,14 @@ list_pos list_insert(list *l, void *v, const list_pos p)
 		perror("calloc");
 		return NULL;
 	}
-	
+
 	// Set value.
 	new_pos->value = v;
 
 	// Set links.
 	new_pos->next = p->next;
 	p->next = new_pos;
-	
+
 	// Update position of last element.
 	if (!list_is_end(l, list_next(l, list_last(l)))  ) {
 		l->last = list_next(l, list_last(l));
@@ -241,7 +241,7 @@ list_pos list_insert(list *l, void *v, const list_pos p)
  *
  * Returns: 0 if the element could successfully be appended into the list.
  */
-int list_append(list *l, void *v) 
+int list_append(list *l, void *v)
 {
 	list_pos p;
 	if (list_is_empty(l)) {
@@ -250,7 +250,7 @@ int list_append(list *l, void *v)
 		p = list_next(l, list_last(l));
 	}
 	if (list_insert(l, v, p) == NULL) {
-		return 1;	
+		return 1;
 	}
 	return 0;
 }
@@ -290,7 +290,7 @@ list_pos list_remove(list *l, const list_pos p)
 		}
 	}
 	l->last = q;
-	
+
 	// Update list length;
 	l->length--;
 	// Return the position of the next element.
@@ -323,6 +323,5 @@ void list_kill(list *l)
 
 	// Free the head and the list itself.
 	free(l->head);
-	free(l);    
+	free(l);
 }
-

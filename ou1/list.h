@@ -1,21 +1,21 @@
 /*
- * Declaration of a generic directed list. Utilized for the implementation 
- * of OU1 for C programming and Unix, Umea University Autumn 2021. 
- * 
+ * Declaration of a generic directed list. Utilized for the implementation
+ * of OU1 for C programming and Unix, Umea University Autumn 2021.
+ *
  * Heavily inspired of the directed and undirected list implementations provided
- * in the "Datastructures and algorithms" course at the Department of Computing 
- * Science, Umea University. Some modifications, additional methods and error 
- * checking has been added compared to the original work of previous authors. 
+ * in the "Datastructures and algorithms" course at the Department of Computing
+ * Science, Umea University. Some modifications, additional methods and error
+ * checking has been added compared to the original work of previous authors.
  *
  * Author: Elias Olofsson (tfy17eon@cs.umu.se)
- * 
- * Based on earlier code by: 
- *         Niclas Borlin (niclas@cs.umu.se) 
- *         Adam Dahlgren Lindstrom (dali@cs.umu.se) 
- *         Lars Karlsson (larsk@cs.umu.se) 
+ *
+ * Based on earlier code by:
+ *         Niclas Borlin (niclas@cs.umu.se)
+ *         Adam Dahlgren Lindstrom (dali@cs.umu.se)
+ *         Lars Karlsson (larsk@cs.umu.se)
  *
  * Version information:
- *   2021-10-10: v1.0, first public version.   
+ *   2021-10-10: v1.0, first public version.
  */
 
 #ifndef __LIST_H
@@ -24,7 +24,6 @@
 #include <stdbool.h>
 
 // ========== Public data types ============
-
 // List type.
 typedef struct list list;
 
@@ -34,9 +33,7 @@ typedef struct cell *list_pos;
 // Type definition for de-allocator function, e.g. free().
 typedef void (*free_function)(void *);
 
-
-// ======= Data structure interface ======= 
-
+// ======= Data structure interface =======
 /**
  * list_empty() - Create an empty list.
  * @free_func: Pointer to a function (or NULL) to be called to deallocate
@@ -44,7 +41,7 @@ typedef void (*free_function)(void *);
  *
  * Returns: A pointer to the new list, or NULL on error.
  */
-list *list_empty(free_function free_func); 
+list *list_empty(free_function free_func);
 
 /**
  * list_is_empty() - Check if a list is empty.
@@ -60,8 +57,8 @@ bool list_is_empty(const list *l);
  *
  * Returns: The number of elements contained in the list.
  */
-int list_length(list *l); 
-	
+int list_length(list *l);
+
 /**
  * list_is_end() - Check if a given position is at the end of a list.
  * @l: List to inspect.
@@ -81,7 +78,7 @@ bool list_is_end(const list *l, const list_pos p);
 bool list_is_member(const list *l, const list_pos p);
 
 /**
- * list_first() - Return the first position of a list, i.e. the position of the 
+ * list_first() - Return the first position of a list, i.e. the position of the
  *                first element in the list.
  * @l: List to inspect.
  *
@@ -90,7 +87,7 @@ bool list_is_member(const list *l, const list_pos p);
 list_pos list_first(const list *l);
 
 /**
- * list_last() - Return the last position of a list, i.e. the position of the 
+ * list_last() - Return the last position of a list, i.e. the position of the
  *               last element in the list.
  * @l: List to inspect.
  *
@@ -108,7 +105,6 @@ list_pos list_last(const list *l);
  */
 list_pos list_next(const list *l, const list_pos p);
 
-
 /**
  * list_index() - Get the position of an element with a certain index in a list.
  * @l:   List to inspect.
@@ -116,14 +112,14 @@ list_pos list_next(const list *l, const list_pos p);
  *
  * Returns: Pointer to the element, or NULL on error.
  */
-list_pos list_index(const list *l, int idx); 
+list_pos list_index(const list *l, int idx);
 
 /**
  * list_inspect() - Get the value of the element at a given position in a list.
  * @l: List to inspect.
  * @p: Any valid position in the list, except the last.
  *
- * Returns: The value at the given position as a void pointer. NOTE: Returns 
+ * Returns: The value at the given position as a void pointer. NOTE: Returns
             NULL if the given position is the last position of the list.
  */
 void *list_inspect(const list *l, const list_pos p);
@@ -148,7 +144,7 @@ list_pos list_insert(list *l, void *v, const list_pos p);
  *
  * Returns: 0 if the element could successfully be appended into the list.
  */
-int list_append(list *l, void *v); 
+int list_append(list *l, void *v);
 
 /**
  * list_remove() - Remove an element from a list.
