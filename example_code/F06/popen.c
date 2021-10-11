@@ -3,7 +3,7 @@
 #include <unistd.h>
 #include <strings.h>
 
-#define MAXLINE 10
+#define MAXLINE 256
 
 int main(int argc, char **argv)
 {
