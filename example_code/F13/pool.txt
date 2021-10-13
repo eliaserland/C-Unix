@@ -1,0 +1,25 @@
+Problemet:	- pool of tasks
+			- pool of threads,
+			- trådar kan skapa nya tasks som läggs i poolen
+			- avsluta när alla tasks är bearbetade och inga nya tasks kan skapas
+
+Tråd-alg
+	while
+		lock mutex
+		while task-pool is empty
+			if I am last working thread
+				mark work finished
+				broadcast condition variable
+				unlock mutex
+				return/exit
+			else if work finished
+				unlock mutex
+				return/exit
+			else
+				wait condition variable
+		take a task from task-pool
+		unlock mutex
+		perform task - if a new task is created/found
+							put it in task-pool, use mutex
+							broadcast condition variable
+			
