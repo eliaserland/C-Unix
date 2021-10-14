@@ -1,9 +1,9 @@
 /*
- * Declaration of a generic directed list. Utilized for the implementation
- * of OU1 for C programming and Unix, Umea University Autumn 2021.
+ * Declaration of a generic undirected list. Utilized for the implementation
+ * of OU3 for C programming and Unix, Umea University Autumn 2021.
  *
- * Heavily inspired of the directed and undirected list implementations provided
- * in the "Datastructures and algorithms" course at the Department of Computing
+ * Heavily inspired of the undirected list implementations provided in the 
+ * "Datastructures and algorithms" course at the Department of Computing
  * Science, Umea University. Some modifications, additional methods and error
  * checking has been added compared to the original work of previous authors.
  *
@@ -15,7 +15,7 @@
  *         Lars Karlsson (larsk@cs.umu.se)
  *
  * Version information:
- *   2021-10-10: v1.0, first public version.
+ *   2021-10-15: v1.0, first public version.
  */
 
 #ifndef __LIST_H

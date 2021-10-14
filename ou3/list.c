@@ -1,9 +1,9 @@
 /*
- * Implementation of a generic directed list. Utilized for the implementation
- * of OU1 for C programming and Unix, Umea University Autumn 2021.
+ * Implementation of a generic undirected list. Utilized for the implementation
+ * of OU3 for C programming and Unix, Umea University Autumn 2021.
  *
- * Heavily inspired of the directed and undirected list implementations provided
- * in the "Datastructures and algorithms" course at the Department of Computing
+ * Heavily inspired of the undirected list implementations provided in the 
+ * "Datastructures and algorithms" course at the Department of Computing
  * Science, Umea University. Some modifications, additional methods and error
  * checking has been added compared to the original work of previous authors.
  *
@@ -15,7 +15,7 @@
  *         Lars Karlsson (larsk@cs.umu.se)
  *
  * Version information:
- *   2021-10-10: v1.0, first public version.
+ *   2021-10-15: v1.0, first public version.
  */
 
 #include <stdio.h>
@@ -103,9 +103,9 @@ bool list_is_empty(const list *l)
 }
 
 /**
- * list_length() - Get the current length of a list.
- * @l: List to inspect.
- *
+ * list_length() - Get
+{
+	for (int i = 0; i < data->num_jobs; i+
  * Returns: The number of elements contained in the list.
  */
 int list_length(list *l)

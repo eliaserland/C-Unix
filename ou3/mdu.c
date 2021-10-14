@@ -32,11 +32,13 @@ typedef struct public_data {
 	list *queue;           // Pointer to the task queue.
 	int num_jobs;          // The total number of separate jobs.
 	int num_threads;       // Number of threads available.
+	int exit_code;         // Return value of main program.
 	char **name_jobs;      // Array with length num_jobs, containing name of each job.
 	blkcnt_t *blkcnt_jobs; // Array with length num_jobs, containing blockcount for each job.
-	pthread_mutex_t queue_mut;   // Mutex for queue access.
-	pthread_mutex_t *blkcnt_mut; // Mutexes for blockcount array access.
-	pthread_cond_t cond;         // Condition variable for the queue.
+	pthread_mutex_t queue_mut;     // Mutex for queue access.
+	pthread_mutex_t exit_code_mut; // Mutex for return value of main program.
+	pthread_mutex_t *blkcnt_mut;   // Mutexes for blockcount array access.
+	pthread_cond_t cond;           // Condition variable for the queue.
 } public_data;
 
 void print_usage(char *program_name); 
@@ -57,7 +59,7 @@ void kill_public_data(public_data *data);
 int main (int argc, char *argv[])
 {
 	// Parse program options. 
-	int opt, num_jobs, s, num_threads = 1;
+	int opt, num_jobs, s, ret, num_threads = 1;
 	while ((opt = getopt(argc, argv, "j:")) != -1) {
 		switch(opt) {
 		case 'j':
@@ -118,7 +120,6 @@ int main (int argc, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 
-	
 	// Declare the thread pool.
 	pthread_t *tid = calloc(num_threads-1, sizeof(*tid));
 	if (tid == NULL) {
@@ -136,11 +137,11 @@ int main (int argc, char *argv[])
 	}
 	
 	// Start a worker in the main thread.
-	thread_worker(data); // NEED TO CHECK RETURN 
+	thread_worker(data);
 
 	// Join all threads.
 	for (int i = 0; i < num_threads-1; i++) {
-		s = pthread_join(tid[i], NULL); // NEED TO CHECK RETURN 
+		s = pthread_join(tid[i], NULL);
 		if (s != 0) {
 			handle_error_en(s, "pthread_join");
 		}
@@ -149,11 +150,14 @@ int main (int argc, char *argv[])
 	// Print results
 	print_results(data);
 
+	// Retrieve exit code.
+	ret = data->exit_code;
+
 	// Clean up all resources.
 	kill_public_data(data);
 	free(tid);
 		
-	return 0;
+	return ret;
 }
 
 /**
@@ -211,12 +215,14 @@ public_data *init_public_data(int num_jobs, int num_threads)
 		data->name_jobs = name_jobs;
 		data->blkcnt_mut = blkcnt_mut;
 
-		// Set the number of jobs & number of threads.
+		// Set the number of jobs, number of threads and default return.
 		data->num_jobs = num_jobs;
 		data->num_threads = num_threads;
+		data->exit_code = EXIT_SUCCESS;
 
 		// Initialize mutexes and condition variables.
 		data->queue_mut = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
+		data->exit_code_mut = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
 		for (int i = 0; i < num_jobs; i++) {
 			data->blkcnt_mut[i] = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
 		}
@@ -284,7 +290,7 @@ task_item *create_task(char *path, int job_id)
  * @param data		Pointer to the structure with public data to modify.
  * @param jobname	String with name to dynamically copy to the structure.
  * @param job_id	Identfier of the job to set the name of.
- * @return			Pointer to the new task, NULL on error.
+ * @return		0 on success.
  */
 int set_job_name(public_data *data, char *jobname, int job_id) 
 {
@@ -292,15 +298,15 @@ int set_job_name(public_data *data, char *jobname, int job_id)
 	if (jobname == NULL) {
 		free(data->name_jobs[job_id]);
 		data->name_jobs[job_id] = NULL;
-		return 0;
+		return EXIT_SUCCESS;
 	}
 	if ((new_name = strdup(jobname)) == NULL) {
 		perror("strdup");
 		data->name_jobs[job_id] = NULL;
-		return 1;
+		return EXIT_FAILURE;
 	}
 	data->name_jobs[job_id] = new_name;
-	return 0;
+	return EXIT_SUCCESS;
 }
 
 /**
@@ -362,7 +368,10 @@ char *concatenate_paths(char *basepath, char *filename)
 
 	// Build the full path of the file.
 	strcpy(path, basepath);
-	strcat(path, "/");
+	if (strcmp(basepath, "/") != 0) {
+		// Only add slash if base path is not root (i.e. "/") 
+		strcat(path, "/");
+	}
 	strcat(path, filename);
 
 	return path;
@@ -377,7 +386,7 @@ char *concatenate_paths(char *basepath, char *filename)
  */
 int run_task(public_data *data, task_item *task) 
 {
-	int ret;
+	int en, ret = EXIT_SUCCESS;
 	char *basepath, *filename, *path;
 	task_item *new_task;
 	struct stat s;
@@ -391,7 +400,7 @@ int run_task(public_data *data, task_item *task)
 	// Get information on the file
 	if (lstat(basepath, &s) < 0) {
 		perror(basepath);
-		return 1;
+		return EXIT_FAILURE;
 	}
 
 	// Get blockcount of the root file.
@@ -403,7 +412,9 @@ int run_task(public_data *data, task_item *task)
 	if (is_directory(&s)) {
 		// Open the directory.
 		if ((dir = opendir(basepath)) == NULL) { 
-			perror(basepath);
+			fprintf(stderr, "mdu: cannot read directory '%s': %s\n",
+			        basepath, strerror(errno));
+			ret = EXIT_FAILURE;
 		} else {
 			// For each file in the directory:
 			while ((dir_ptr = readdir(dir)) != NULL) {
@@ -418,6 +429,7 @@ int run_task(public_data *data, task_item *task)
 				// Concatenate base path and filename.
 				path = concatenate_paths(basepath, filename);
 				if (path == NULL) {
+					ret = EXIT_FAILURE;
 					continue;
 				}
 
@@ -425,6 +437,7 @@ int run_task(public_data *data, task_item *task)
 				if (lstat(path, &s) < 0) {
 					perror(path); 
 					free(path);
+					ret = EXIT_FAILURE;
 					continue;
 				}
 
@@ -436,6 +449,7 @@ int run_task(public_data *data, task_item *task)
 					// Create a new task item. 
 					new_task = create_task(path, task->job_id);
 					if (new_task == NULL) {
+						ret = EXIT_FAILURE;
 						continue;
 					}
 
@@ -443,15 +457,16 @@ int run_task(public_data *data, task_item *task)
 					pthread_mutex_lock(&data->queue_mut);
 					if (list_append(data->queue, new_task)) {
 						kill_task(new_task);
+						ret = EXIT_FAILURE;
 						continue;
 					}
-					pthread_mutex_unlock(&data->queue_mut);
-
+					
 					// Signal condition variable.
-					ret = pthread_cond_signal(&data->cond); 
-					if (ret != 0) {
-						handle_error_en(ret, "pthread_cond_signal");
+					en = pthread_cond_signal(&data->cond); 
+					if (en != 0) {
+						handle_error_en(en, "pthread_cond_signal");
 					}
+					pthread_mutex_unlock(&data->queue_mut);
 				}
 				free(path);
 			}
@@ -464,7 +479,7 @@ int run_task(public_data *data, task_item *task)
 	add_blockcount(data, task->job_id, blkcnt_tot);
 	pthread_mutex_unlock(&data->blkcnt_mut[task->job_id]);
 
-	return 0;
+	return ret;
 }
 
 /**
@@ -482,6 +497,7 @@ void *thread_worker(void *args)
 	public_data *data = (public_data *) args;
 	static int num_waiting_threads = 0; 
 	static bool work_finished = false;
+	static bool error_has_occurred = false;
 	int s;
 
 	while (1) {
@@ -495,10 +511,10 @@ void *thread_worker(void *args)
 					handle_error_en(s, "pthread_cond_broadcast");
 				}
 				pthread_mutex_unlock(&data->queue_mut);
-				return 0;
+				return NULL;
 			} else if (work_finished) {
 				pthread_mutex_unlock(&data->queue_mut);
-				return 0;
+				return NULL;
 			} else {
 				num_waiting_threads++;
 				s = pthread_cond_wait(&data->cond, &data->queue_mut);
@@ -510,7 +526,12 @@ void *thread_worker(void *args)
 		}
 		task_item *task = list_pop(data->queue);
 		pthread_mutex_unlock(&data->queue_mut);
-		run_task(data, task); // CHECK RETURN
+		if (run_task(data, task) && !error_has_occurred) {
+			pthread_mutex_lock(&data->exit_code_mut);
+			error_has_occurred = true;
+			data->exit_code = EXIT_FAILURE;
+			pthread_mutex_unlock(&data->exit_code_mut);
+		}
 		kill_task(task);
 	}
 }
@@ -568,6 +589,7 @@ void kill_public_data(public_data *data)
 	// Destroy mutexes and condition variables
 	pthread_cond_destroy(&data->cond);
 	pthread_mutex_destroy(&data->queue_mut);
+	pthread_mutex_destroy(&data->exit_code_mut);
 	for (int i = 0; i < data->num_jobs; i++) {
 		pthread_mutex_destroy(&data->blkcnt_mut[i]);
 	}

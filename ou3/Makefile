@@ -27,8 +27,8 @@ clean:
 	-rm -f $(TARGET) $(OBJ)
 	
 memtest: $(TARGET)
-	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --show-reachable=yes --track-fds=yes ./$< one .. ../.. -j4
+	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --show-reachable=yes --track-fds=yes ./$< /etc -j8
 
 helgrind: $(TARGET)
-	valgrind --tool=helgrind ./$< one .. ../..
+	valgrind --tool=helgrind ./$< /etc -j8
 
