@@ -25,13 +25,12 @@
 // ============== Internal data types ==============
 struct cell {
 	struct cell *next; // Pointer to next list element.
-	struct cell *prev; // Pointer to previous list element.
 	void *value;       // Pointer to the value of the list element.
 };
 
 struct list {
-	struct cell *top;        // Pointer to list top.
-	struct cell *bottom;     // Pointer to list bottom.
+	struct cell *head;       // Pointer to list head.
+	struct cell *last;       // Pointer to last element of the list.
 	int length;              // Length of list.
 	free_function free_func; // Function to deallocate list values.
 };
@@ -52,43 +51,19 @@ list *list_empty(free_function free_func)
 		perror("calloc");
 		return NULL;
 	}
-	l->top = NULL;
-	l->bottom = NULL;
 
-	do {
-		// Allocate memory for the list top.
-		l->top = calloc(1, sizeof(struct cell));
-		if (l->top == NULL) {
-			perror("calloc");
-			
-			return NULL;
-		}
-		// Allocate memory for the list bottom.
-		l->bottom = calloc(1, sizeof(struct cell));
-		if (l->bottom == NULL) {
-			
-		}	
-		// Set consistent links between border elements.
-		l->top->next = l->bottom;
-		l->bottom->prev = l->top;
-		
-		// Set the length of the list.
-		l->length = 0;
-		
-		// Store the free function.
-		l->free_func = free_func;
-		 
-		return l;
-
-	} while(0);
-	
-	// Error handling.
-	perror("calloc");
-	free(l->top);
-	free(l->bottom);
-	free(l);
-	return NULL;
-	
+	// Allocate memory for the list head.
+	l->head = calloc(1, sizeof(struct cell));
+	if (l->head == NULL) {
+		perror("calloc");
+		free(l);
+		return NULL;
+	}
+	l->head->next  = NULL;    // No elements in the list so far.
+	l->last = l->head;        // Set pointer to the last element.
+	l->length = 0;            // Set the length of the list.
+	l->free_func = free_func; // Store the free function.
+	return l;
 }
 
 /**
@@ -99,7 +74,7 @@ list *list_empty(free_function free_func)
  */
 bool list_is_empty(const list *l)
 {
-	return l->top->next == l->bottom;
+	return l->head->next == NULL;
 }
 
 /**
@@ -114,6 +89,35 @@ int list_length(list *l)
 }
 
 /**
+ * list_is_member() - Check if a given position is a member of a list.
+ * @l: List to inspect.
+ * @p: The list position to check.
+ *
+ * Returns: True if p is a member of the list l.
+ */
+bool list_is_member(const list *l, const list_pos p)
+{
+	for (list_pos tmp = list_first(l); tmp != NULL; tmp = tmp->next) {
+		if (p == tmp) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/**
+ * list_is_end() - Check if a given position is at the end of a list.
+ * @l: List to inspect.
+ * @p: Any valid position in the list.
+ *
+ * Returns: True if p is at the end of the list.
+ */
+bool list_is_end(const list *l, const list_pos p)
+{
+	return p->next == NULL;
+}
+
+/**
  * list_first() - Return the first position of a list, i.e. the position of the
  *                first element in the list.
  * @l: List to inspect.list_is_end
@@ -122,19 +126,19 @@ int list_length(list *l)
  */
 list_pos list_first(const list *l)
 {
-	return l->top->next;
+	return l->head;
 }
 
 /**
- * list_end() - Return the last position of a list, i.e. the position after the
+ * list_last() - Return the last position of a list, i.e. the position of the
  *               last element in the list.
  * @l: List to inspect.
  *
  * Returns: The last position in the given list.
  */
-list_pos list_end(const list *l)
+list_pos list_last(const list *l)
 {
-	return l->bottom;
+	return l->last;
 }
 
 /**
@@ -143,32 +147,15 @@ list_pos list_end(const list *l)
  * @p: Any valid position except the last in the list.
  *
  * Returns: The position in the list after the given position.
- *          Returns NULL on invalid action, i.e. when p is the last position.
+ *          Returns NULL if the given position is at the end of the list.
  */
 list_pos list_next(const list *l, const list_pos p)
 {
-	if (p == list_end(l)) {
+	if (list_is_end(l, p)) {
 		fprintf(stderr, "list_next: Warning: Trying to navigate past end of list.\n");
 		return NULL;
 	}
 	return p->next;
-}
-
-/**
- * list_previous() - Return the previous position in a list.
- * @l: List to inspect.
- * @p: Any valid position except the first in the list.
- *
- * Returns: The position in the list before the given position.
- *          Returns NULL on invalid action, i.e. when p is the first position.
- */
-list_pos list_previous(const list *l, const list_pos p)
-{
-	if (p == list_first(l)) {
-		fprintf(stderr, "list_previous: Warning: Trying to navigate past beginning of list.\n");
-		return NULL;
-	}
-	return p->prev;
 }
 
 /**
@@ -204,11 +191,11 @@ list_pos list_index(const list *l, int idx)
  */
 void *list_inspect(const list *l, const list_pos p)
 {
-	if (p == list_end(l)) {
+	if (list_is_end(l, p)) {
 		fprintf(stderr,"list_inspect: Warning: Trying to inspect position at end of list.\n");
 		return NULL;
 	}
-	return p->value;
+	return p->next->value;
 }
 
 /**
@@ -225,7 +212,7 @@ void *list_inspect(const list *l, const list_pos p)
 list_pos list_insert(list *l, void *v, const list_pos p)
 {
 	// Create new element.
-	list_pos new_pos = calloc(1, sizeof(struct cell));
+	list_pos new_pos=calloc(1, sizeof(struct cell));
 	if (new_pos == NULL) {
 		perror("calloc");
 		return NULL;
@@ -235,15 +222,15 @@ list_pos list_insert(list *l, void *v, const list_pos p)
 	new_pos->value = v;
 
 	// Set links.
-	new_pos->next = p;
-	new_pos->prev = p->prev;
-	p->prev = new_pos;
-	new_pos->prev->next = new_pos;
-	
+	new_pos->next = p->next;
+	p->next = new_pos;
+
+	// Update position of last element.
+	if (!list_is_end(l, list_next(l, list_last(l)))  ) {
+		l->last = list_next(l, list_last(l));
+	}
 	// Update length.
 	l->length++;
-	
-	// Return the position of the new cell.
 	return p;
 }
 
@@ -256,7 +243,13 @@ list_pos list_insert(list *l, void *v, const list_pos p)
  */
 int list_append(list *l, void *v)
 {
-	if (list_insert(l, v, list_end(l)) == NULL) {
+	list_pos p;
+	if (list_is_empty(l)) {
+		p = list_first(l);
+	} else {
+		p = list_next(l, list_last(l));
+	}
+	if (list_insert(l, v, p) == NULL) {
 		return 1;
 	}
 	return 0;
@@ -295,26 +288,33 @@ void *list_pop(list *l)
  */
 list_pos list_remove(list *l, const list_pos p)
 {
-	// Remember return position.
-	list_pos next_pos = p->next;
-	
-	// Link past this element.
-	p->prev->next = p->next;
-	p->next->prev = p->prev;
+	// Cell to remove.
+	list_pos c = p->next;
+
+	// Link past cell to remove.
+	p->next = c->next;
 
 	// Call free_func if registered.
 	if (l->free_func != NULL) {
 		// Free any user-allocated memory for the value.
-		l->free_func(p->value);
+		l->free_func(c->value);
 	}
 	// Free the memory allocated to the cell itself.
-	free(p);
+	free(c);
+
+	// Update pointer to last element.
+	list_pos q = list_first(l);
+	if (!list_is_empty(l)) {
+		while (!list_is_end(l, list_next(l, q))) {
+			q = list_next(l, q);
+		}
+	}
+	l->last = q;
 
 	// Update list length;
 	l->length--;
-	
 	// Return the position of the next element.
-	return next_pos;
+	return p;
 }
 
 /**
@@ -337,12 +337,11 @@ void list_kill(list *l)
 	list_pos p = list_first(l);
 
 	// Remove first element until list is empty.
-	while (!list_is_empty(l)) {
+	while(!list_is_empty(l)) {
 		p = list_remove(l, p);
 	}
 
 	// Free the head and the list itself.
-	free(l->top);
-	free(l->bottom);
+	free(l->head);
 	free(l);
 }

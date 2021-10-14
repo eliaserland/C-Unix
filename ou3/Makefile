@@ -4,8 +4,8 @@
 #   2021-10-15: v1.0, first public version. 
 
 CC = gcc
-CFLAGS = -g -std=gnu11  -Wall -Wextra -Wpedantic -Wmissing-declarations  -Wold-style-definition -Wmissing-prototypes -pthread #-Werror
-#LDFLAGS = 
+CFLAGS = -g -std=gnu11  -Wall -Wextra -Wpedantic -Wmissing-declarations  -Wold-style-definition -Wmissing-prototypes #-Werror
+LDFLAGS = -pthread
 
 TARGET = mdu
 
@@ -27,8 +27,8 @@ clean:
 	-rm -f $(TARGET) $(OBJ)
 	
 memtest: $(TARGET)
-	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --show-reachable=yes --track-fds=yes ./$< one two three
+	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --show-reachable=yes --track-fds=yes ./$< one .. ../..
 
 helgrind: $(TARGET)
-	valgrind --tool=helgrind ./$<
+	valgrind --tool=helgrind ./$< one .. ../..
 

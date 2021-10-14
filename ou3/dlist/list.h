@@ -60,22 +60,40 @@ bool list_is_empty(const list *l);
 int list_length(list *l);
 
 /**
+ * list_is_end() - Check if a given position is at the end of a list.
+ * @l: List to inspect.
+ * @p: Any valid position in the list.
+ *
+ * Returns: True if p is at the end of the list.
+ */
+bool list_is_end(const list *l, const list_pos p);
+
+/**
+ * list_is_member() - Check if a given position is a member of a list.
+ * @l: List to inspect.
+ * @p: The list position to check.
+ *
+ * Returns: True if p is a member of the list l.
+ */
+bool list_is_member(const list *l, const list_pos p);
+
+/**
  * list_first() - Return the first position of a list, i.e. the position of the
  *                first element in the list.
- * @l: List to inspect.list_is_end
+ * @l: List to inspect.
  *
  * Returns: The first position in the given list.
  */
 list_pos list_first(const list *l);
 
 /**
- * list_end() - Return the last position of a list, i.e. the position after the
+ * list_last() - Return the last position of a list, i.e. the position of the
  *               last element in the list.
  * @l: List to inspect.
  *
  * Returns: The last position in the given list.
  */
-list_pos list_end(const list *l);
+list_pos list_last(const list *l);
 
 /**
  * list_next() - Return the next position in a list.
@@ -83,19 +101,9 @@ list_pos list_end(const list *l);
  * @p: Any valid position except the last in the list.
  *
  * Returns: The position in the list after the given position.
- *          Returns NULL on invalid action, i.e. when p is the last position.
+ *          Returns NULL if the given position is at the end of the list.
  */
 list_pos list_next(const list *l, const list_pos p);
-
-/**
- * list_previous() - Return the previous position in a list.
- * @l: List to inspect.
- * @p: Any valid position except the first in the list.
- *
- * Returns: The position in the list before the given position.
- *          Returns NULL on invalid action, i.e. when p is the first position.
- */
-list_pos list_previous(const list *l, const list_pos p);
 
 /**
  * list_index() - Get the position of an element with a certain index in a list.
@@ -139,13 +147,13 @@ list_pos list_insert(list *l, void *v, const list_pos p);
 int list_append(list *l, void *v);
 
 /**
- * list_pop() - Inspect and remove an element at the beginning of the list. Can 
- *              only be used if the freeing function is not set (i.e. set to 
- *              NULL), otherwise memory allocated for the element value will be 
+ * list_pop() - Inspect and remove an element at the end of the list. Can only
+ *              be used if the freeing function is not set (i.e. set to NULL), 
+ *              otherwise memory allocated for the element value will be 
  *              returned when the list element is removed.  
  * @l: List to manipulate.
  *
- * Returns: Pointer to the value of the first element, or NULL if list is empty.  
+ * Returns: Pointer to the value of the last element, or NULL if list is empty.  
  */
 void *list_pop(list *l);
 

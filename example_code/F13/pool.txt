@@ -16,10 +16,12 @@ Tråd-alg
 				unlock mutex
 				return/exit
 			else
+				num_threads_waiting++
 				wait condition variable
+				num_threads_waiting--
 		take a task from task-pool
 		unlock mutex
 		perform task - if a new task is created/found
 							put it in task-pool, use mutex
 							broadcast condition variable
-			
+
