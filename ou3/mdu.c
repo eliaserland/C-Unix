@@ -16,9 +16,12 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <dirent.h>
+#include <errno.h>
 #include <pthread.h>
-
 #include "list.h"
+
+#define handle_error_en(en, msg) \
+        do { errno = en; perror(msg); exit(EXIT_FAILURE); } while (0)
 
 typedef struct task_item {
 	char *path; // Base path of the task.
@@ -26,7 +29,7 @@ typedef struct task_item {
 } task_item;
 
 typedef struct public_data {
-	list *queue;           // Pointer to list of tasks.
+	list *queue;           // Pointer to the task queue.
 	int num_jobs;          // The total number of separate jobs.
 	int num_threads;       // Number of threads available.
 	char **name_jobs;      // Array with length num_jobs, containing name of each job.
@@ -36,33 +39,32 @@ typedef struct public_data {
 	pthread_cond_t cond;         // Condition variable for the queue.
 } public_data;
 
+void print_usage(char *program_name); 
 public_data *init_public_data(int num_jobs, int num_threads);
 task_item *create_task(char *path, int job_id);
-int set_job_name(public_data *data, char *jobname, int job_id);
-void kill_task(task_item *task);
-void kill_public_data(public_data *data);
-
-
-void print_usage(char *program_name);
-void *thread_worker(void *args);
-int run_task(public_data *data, task_item *task);
+int set_job_name(public_data *data, char *jobname, int job_id); 
+blkcnt_t get_blockcount(struct stat *s); 
+bool is_directory(struct stat *s); 
+void add_blockcount(public_data *data, int job_id, blkcnt_t count);
 char *concatenate_paths(char *basepath, char *filename);
+int run_task(public_data *data, task_item *task);
+void *thread_worker(void *args);
+void print_results(public_data *data); 
+void kill_task(task_item *task);
+void kill_public_data(public_data *data); 
 
-
-
-blkcnt_t blockcount(char *filename);
-blkcnt_t blockcount_dir(char *basepath);
 
 int main (int argc, char *argv[])
 {
-	// Parse program arguments. 
-	int opt, num_jobs, num_threads = 1;
+	// Parse program options. 
+	int opt, num_jobs, s, num_threads = 1;
 	while ((opt = getopt(argc, argv, "j:")) != -1) {
 		switch(opt) {
 		case 'j':
 			num_threads = atoi(optarg);
 			if (num_threads < 1) {
-				fprintf(stderr, "Warning: NUM_THREADS must be greater than or equal to 1.\n");
+				fprintf(stderr, "Warning: NUM_THREADS must be "
+				        "greater than or equal to 1.\n");
 				exit(EXIT_FAILURE);
 			}
 			break;
@@ -72,65 +74,80 @@ int main (int argc, char *argv[])
 		}
 
 	}
-	// The number of additional arguments == the number of jobs (files/folders) to execute. 
-	num_jobs = argc-optind;
+
+	/* For the remaining program arguments: each specified argument 
+	   (file/folder name) is a job to for the program to execute. */
+	num_jobs = argc - optind;
 	if (num_jobs == 0) {
 		print_usage(argv[0]);
 		exit(EXIT_FAILURE);
 	}
 
-	// Create data structure to hold public data.
+	/* Create a data structure to hold all public data, i.e. all common 
+	   variables, mutexes and condition variables needed. */
 	public_data *data = init_public_data(num_jobs, num_threads);
 	if (data == NULL) {
-		fprintf(stderr, "Could not initialize public data structure.\n");
+		fprintf(stderr, "Couldn't initialize public data structure.\n");
 		exit(EXIT_FAILURE);
 	}
 
-
-	// Each additional argument given&thread_worker, datais a job to execute. 
+	// Parse each of the program arguments/jobs into initial tasks.
 	task_item *task;
 	for (int i = 0; i < num_jobs; i++) {
-		
-		// Create a task item.
+		// Create a new task item.
 		task = create_task(argv[i+optind], i); 
 		if (task == NULL) {
-			exit(EXIT_FAILURE); // Do something else?
+			continue;
 		}
 
-		// Set the initial task path as name for the job.
+		// Let the path of the initial task be the name for the job.
 		if (set_job_name(data, task->path, i)) {
-			exit(EXIT_FAILURE); // Do something else?
+			kill_task(task);
+			continue; // Do something else?
 		}
 
 		// Append the task to the pulic task queue.
 		if (list_append(data->queue, task)) {
-			exit(EXIT_FAILURE);
+			kill_task(task);
+			set_job_name(data, NULL, i);
+			continue;
+		}
+	}
+	if (list_is_empty(data->queue)) {
+		kill_public_data(data);
+		exit(EXIT_FAILURE);
+	}
+
+	
+	// Declare the thread pool.
+	pthread_t *tid = calloc(num_threads-1, sizeof(*tid));
+	if (tid == NULL) {
+		perror("calloc");
+		kill_public_data(data);
+		exit(EXIT_FAILURE);
+	}
+	
+	// Create all worker threads.
+	for (int i = 0; i < num_threads-1; i++) {
+		s = pthread_create(&tid[i], NULL, &thread_worker, data);
+		if (s != 0) {
+			handle_error_en(s, "pthread_create");
 		}
 	}
 	
-
-	// Declare/Initialize mutexes, condition variables, threads.
-	pthread_t *tid = calloc(num_threads-1, sizeof(*tid));
-	
-	// Create data structures: Thread pool, task stack/queue
-
-	// For each thread: start thread algorithm.
-	for (int i = 0; i < num_threads-1; i++) {
-		pthread_create(&tid[i], NULL, &thread_worker, data);
-	}
-	
-	// In main thread: start thread algorithm.
-	void *ret = thread_worker(data);
+	// Start a worker in the main thread.
+	thread_worker(data); // NEED TO CHECK RETURN 
 
 	// Join all threads.
 	for (int i = 0; i < num_threads-1; i++) {
-		pthread_join(tid[i], NULL); // NEED TO CHECK RETURN 
+		s = pthread_join(tid[i], NULL); // NEED TO CHECK RETURN 
+		if (s != 0) {
+			handle_error_en(s, "pthread_join");
+		}
 	}
 
 	// Print results
-	for (int i = 0; i < num_jobs; i++) {
-		printf("%-7ld %s\n", data->blkcnt_jobs[i], data->name_jobs[i]);
-	}
+	print_results(data);
 
 	// Clean up all resources.
 	kill_public_data(data);
@@ -140,10 +157,20 @@ int main (int argc, char *argv[])
 }
 
 /**
+ * print_usage() - Print program synopsis and exit.
+ * @param program_name String with the name of the program.		.
+ */
+void print_usage(char *program_name) 
+{
+	fprintf(stderr, "Usage: %s [-j NUM_THREADS] FILE [FILES...]\n",
+	        program_name);
+}
+
+/**
  * init_public_data() - Initialize and allocate the public data structure.
  *
  * @param num_jobs	The number of jobs to execute.
- * @return			Pointer to the data structure, NULL on error.
+ * @return		Pointer to the data structure, NULL on error.
  */
 public_data *init_public_data(int num_jobs, int num_threads) 
 {
@@ -210,7 +237,6 @@ public_data *init_public_data(int num_jobs, int num_threads)
 	return NULL;
 }
 
-
 /**
  * create_task() - Allocate and set values for a new task item.
  *
@@ -263,12 +289,245 @@ task_item *create_task(char *path, int job_id)
 int set_job_name(public_data *data, char *jobname, int job_id) 
 {
 	char *new_name;
+	if (jobname == NULL) {
+		free(data->name_jobs[job_id]);
+		data->name_jobs[job_id] = NULL;
+		return 0;
+	}
 	if ((new_name = strdup(jobname)) == NULL) {
 		perror("strdup");
+		data->name_jobs[job_id] = NULL;
 		return 1;
 	}
 	data->name_jobs[job_id] = new_name;
 	return 0;
+}
+
+/**
+ * get_blockcount() - Wrapper to get the 512B blockcount for a stat struct. 
+ *
+ * @param s		Pointer to stat struct for a given file.
+ * @return		The number of 512B blocks allocated on disk.
+ */
+blkcnt_t get_blockcount(struct stat *s) 
+{
+	return s->st_blocks;
+}
+
+/**
+ * is_directory() - Wrapper to check if a stat struct is a directory. 
+ *
+ * @param s		Pointer to stat struct for a given file.
+ * @return		True if the file is a directory.
+ */
+bool is_directory(struct stat *s) 
+{
+	return S_ISDIR(s->st_mode);
+}
+
+/**
+ * add_blockcount() - Add blockcount to the public data structure, for a specific job. 
+ *
+ * @param data		Pointer to the structure with public data.
+ * @param job_id	Identfier of the job.
+ * @param count 	Blockcount to add for the given job id.
+ */
+void add_blockcount(public_data *data, int job_id, blkcnt_t count) 
+{
+	data->blkcnt_jobs[job_id] += count;
+}
+
+/**
+ * concatenate_paths() - Given a base path, add a filename. 
+ *
+ * @param basepath	String with the base path name.
+ * @param filename	Name of file to concatenate with base path.
+ * @return			A new, dynamically allocated string with the combined path.
+ */
+char *concatenate_paths(char *basepath, char *filename) 
+{ 
+	int len_basepath, len_filename;
+	char *path;
+	
+	// Get lengths of strings.
+	len_basepath = strlen(basepath);
+	len_filename = strlen(filename);
+
+	// Allocate memory for new string.
+	path = malloc((len_basepath + len_filename + 2) * sizeof(char)); 
+	if (path == NULL) {
+		perror("malloc");
+		return NULL;
+	}
+
+	// Build the full path of the file.
+	strcpy(path, basepath);
+	strcat(path, "/");
+	strcat(path, filename);
+
+	return path;
+}
+
+/**
+ * run_task() - Execute one task item. 
+ *
+ * @param data	Pointer to the structure with public data.
+ * @param task	Pointer to the task data structure.
+ * @return	0 if the task is successfully completed, 1 on error.
+ */
+int run_task(public_data *data, task_item *task) 
+{
+	int ret;
+	char *basepath, *filename, *path;
+	task_item *new_task;
+	struct stat s;
+	struct dirent *dir_ptr;
+	DIR *dir;
+	blkcnt_t blkcnt_tot = 0; // Total 512B block count for the task.
+
+	// Root file of the task.
+	basepath = task->path;
+
+	// Get information on the file
+	if (lstat(basepath, &s) < 0) {
+		perror(basepath);
+		return 1;
+	}
+
+	// Get blockcount of the root file.
+	blkcnt_tot += get_blockcount(&s);
+
+	/* If the root file is a directory: Open and get the blocksizes of 
+	   all non-directories and add to the total, while marking each 
+	   subdirectory as new tasks and appending to the task queue. */
+	if (is_directory(&s)) {
+		// Open the directory.
+		if ((dir = opendir(basepath)) == NULL) { 
+			perror(basepath);
+		} else {
+			// For each file in the directory:
+			while ((dir_ptr = readdir(dir)) != NULL) {
+				// Get the filename.
+				filename = dir_ptr->d_name;
+
+				// Filter out the always present directories "." and ".."
+				if (strcmp(filename, ".") == 0 || strcmp(filename, "..") == 0) {
+					continue;
+				}
+
+				// Concatenate base path and filename.
+				path = concatenate_paths(basepath, filename);
+				if (path == NULL) {
+					continue;
+				}
+
+				// Get information of the file.
+				if (lstat(path, &s) < 0) {
+					perror(path); 
+					free(path);
+					continue;
+				}
+
+				/* Non-directory files: Add blockcount to total.
+				   Directory files: Create new task, add to queue. */
+				if (!is_directory(&s)) {
+					blkcnt_tot += get_blockcount(&s);
+				} else {
+					// Create a new task item. 
+					new_task = create_task(path, task->job_id);
+					if (new_task == NULL) {
+						continue;
+					}
+
+					// Append new task to the task queue.
+					pthread_mutex_lock(&data->queue_mut);
+					if (list_append(data->queue, new_task)) {
+						kill_task(new_task);
+						continue;
+					}
+					pthread_mutex_unlock(&data->queue_mut);
+
+					// Signal condition variable.
+					ret = pthread_cond_signal(&data->cond); 
+					if (ret != 0) {
+						handle_error_en(ret, "pthread_cond_signal");
+					}
+				}
+				free(path);
+			}
+			closedir(dir);
+		}
+	}
+	
+	// Add total blockcount of the task, to the public blockcount of the job
+	pthread_mutex_lock(&data->blkcnt_mut[task->job_id]);
+	add_blockcount(data, task->job_id, blkcnt_tot);
+	pthread_mutex_unlock(&data->blkcnt_mut[task->job_id]);
+
+	return 0;
+}
+
+/**
+ * thread_worker() - Main worker function for each thread. Until all tasks are 
+ *                   completed and none more can be created, tasks are dequeued 
+ *                   one by one from the the task queue and carried out.
+ *
+ * @param args	Pointer to the structure with public data.
+ * @return	0 if all tasks are successfully completed and none more 
+ *              can be created.
+ */
+void *thread_worker(void *args) 
+{
+	// Typecast args
+	public_data *data = (public_data *) args;
+	static int num_waiting_threads = 0; 
+	static bool work_finished = false;
+	int s;
+
+	while (1) {
+		pthread_mutex_lock(&data->queue_mut);
+		while (list_is_empty(data->queue)) {
+			if (num_waiting_threads == data->num_threads-1) {
+				// This is the last working (non-waiting) thread
+				work_finished = true;
+				s = pthread_cond_broadcast(&data->cond);
+				if (s != 0) {
+					handle_error_en(s, "pthread_cond_broadcast");
+				}
+				pthread_mutex_unlock(&data->queue_mut);
+				return 0;
+			} else if (work_finished) {
+				pthread_mutex_unlock(&data->queue_mut);
+				return 0;
+			} else {
+				num_waiting_threads++;
+				s = pthread_cond_wait(&data->cond, &data->queue_mut);
+				if (s != 0) {
+					handle_error_en(s, "pthread_cond_wait");
+				}
+				num_waiting_threads--;
+			}
+		}
+		task_item *task = list_pop(data->queue);
+		pthread_mutex_unlock(&data->queue_mut);
+		run_task(data, task); // CHECK RETURN
+		kill_task(task);
+	}
+}
+
+/**
+ * print_results() - Print the blockcount for each job to the terminal.
+ *
+ * @param data	Pointer to the structure with public data.
+ */
+void print_results(public_data *data) 
+{
+	for (int i = 0; i < data->num_jobs; i++) {
+		if (data->name_jobs[i] != NULL) {
+			printf("%-7ld %s\n", data->blkcnt_jobs[i], 
+			       data->name_jobs[i]);
+		}
+	}
 }
 
 /**
@@ -317,356 +576,3 @@ void kill_public_data(public_data *data)
 	// Kill the public data strucure itself
 	free(data);
 }
-
-
-
-
-
-
-
-
-
-
-
-/**
- * print_usage() - Print program synopsis and exit.
- * @param program_name String with the name of the program.		.
- */
-void print_usage(char *program_name) 
-{
-	fprintf(stderr, "Usage: %s [-j NUM_THREADS] FILE [FILES...]\n",
-	        program_name);
-}
-
-
-
-
-void *thread_worker(void *args) 
-{
-	// Typecast args
-	public_data *data = (public_data *) args;
-	static int num_waiting_threads = 0; 
-	static bool work_finished = false;
-
-	while (1) {
-		pthread_mutex_lock(&data->queue_mut);
-		while (list_is_empty(data->queue)) {
-			if (num_waiting_threads == data->num_threads-1) {
-				// I am last working thread.
-				work_finished = true;
-				pthread_cond_broadcast(&data->cond);
-				pthread_mutex_unlock(&data->queue_mut);
-				return 0;
-			} else if (work_finished) {
-				pthread_mutex_unlock(&data->queue_mut);
-				return 0;
-			} else {
-				num_waiting_threads++;
-				pthread_cond_wait(&data->cond, &data->queue_mut);
-				num_waiting_threads--;
-			}
-		}
-		task_item *task = list_pop(data->queue);
-		pthread_mutex_unlock(&data->queue_mut);
-		run_task(data, task);
-		kill_task(task);
-	}
-}
-
-/**
- * run_task() - Execute one task item. 
- *
- * @param data		Pointer to the structure with public data.
- * @param task		Pointer to the task data structure.
- * @return			0 if the task is successfully completed, 1 on error.
- */
-int run_task(public_data *data, task_item *task) 
-{
-	blkcnt_t blkcnt_tot = 0;
-	
-	struct stat sb;
-	struct dirent *dir_ptr;
-	DIR *dir;
-
-	char *basepath;
-	char *path;
-	task_item *new_task;
-
-	basepath = task->path;
-
-	// Get information on the file
-	if (lstat(basepath, &sb) == -1) {
-		perror("lstat");
-		return 1;
-	}
-
-	// Get blockcount of the root file of the task.
-	blkcnt_tot += sb.st_blocks;
-
-	// If the file is a directory. 
-	// Get the blocksize of all non-directories, while marking each subdirectory as a new task.
-	if (S_ISDIR(sb.st_mode)) {
-		
-		// Open the directory.
-		dir = opendir(basepath);
-		if (dir == NULL) {
-			perror("opendir");
-			// do something
-		}
-		
-
-		// For all files in the directory:
-		while ((dir_ptr = readdir(dir)) != NULL) {
-			
-			// Filter out the always present directories "." and ".."
-			if (strcmp(dir_ptr->d_name, ".") == 0 || strcmp(dir_ptr->d_name, "..") == 0) {
-				continue;
-			}
-
-			// Concatenate base path and filename
-			path = concatenate_paths(basepath, dir_ptr->d_name);
-			if (path == NULL) {
-				//do something
-			}
-
-			// Get information on the file.
-			if (lstat(path, &sb) == -1) {
-				perror("lstat");
-				exit(EXIT_FAILURE);
-			}
-
-			if (S_ISDIR(sb.st_mode)) {
-				// For directories: Add as a new item to the task queue.
-				
-				// Create a new task item. Set path and let new task inherit job id.
-				new_task = create_task(path, task->job_id);
-				if (new_task == NULL) {
-					exit(EXIT_FAILURE);
-				}
-
-				// Append new task to the task queue.
-				pthread_mutex_lock(&data->queue_mut);
-				if (list_append(data->queue, new_task)) {
-					// ERROR
-					exit(EXIT_FAILURE);
-				}
-				pthread_mutex_unlock(&data->queue_mut);
-
-				// BROADCAST/SIGNAL CONDITION VARIABLE.
-				pthread_cond_signal(&data->cond);
-
-			} else {
-				// For all other file types: Get blockcount, add to total.
-				blkcnt_tot += sb.st_blocks;
-			}
-			free(path);
-			path = NULL;
-		}
-		closedir(dir);
-		
-
-	}
-	
-	pthread_mutex_lock(&data->blkcnt_mut[task->job_id]);
-	data->blkcnt_jobs[task->job_id] += blkcnt_tot;
-	pthread_mutex_unlock(&data->blkcnt_mut[task->job_id]);
-
-	return 0;
-}
-
-/**
- * concatenate_paths() - Given a base path, add a filename. 
- *
- * @param basepath	String with the base path name.
- * @param filename	Name of file to concatenate with base path.
- * @return			A new, dynamically allocated string with the combined path.
- */
-char *concatenate_paths(char *basepath, char *filename) 
-{ 
-	int len_basepath, len_filename;
-	char *path;
-	
-	// Get lengths of strings.
-	len_basepath = strlen(basepath);
-	len_filename = strlen(filename);
-
-	// Allocate memory for new string.
-	path = malloc((len_basepath + len_filename + 2) * sizeof(char)); 
-	if (path == NULL) {
-		perror("malloc");
-		return NULL;
-	}
-
-	// Build the full path of the file.
-	strcpy(path, basepath);
-	strcat(path, "/");
-	strcat(path, filename);
-
-	return path;
-}
-
-
-
-
-/**
- * 
- *
- * @param file		String containing the filename.
- * @return			true if file exists.
- */
-blkcnt_t blockcount(char *filename) 
-{
-	blkcnt_t tot;
-	struct stat s;
-	if (lstat(filename, &s) == -1) {
-		perror("lstat");
-		return 0; //(blkcnt_t)-1;
-	}
-	tot = s.st_blocks;
-
-	//printf("%ld %s\n", s.st_blocks, filename);
-
-	if (S_ISDIR(s.st_mode)) {
-		// MUTEX LOCK
-		// Add subdirectory to task list.
-
-		// BROADCAST/SIGNAL
-		// MUTEX UNLOCK
-		
-		
-		//tot += blockcount_dir(filename);
-	}
-	return tot;
-}
-
-blkcnt_t blockcount_dir(char *basepath)
-{
-	blkcnt_t tot = 0;
-	DIR *dir;
-	struct dirent *dir_ptr;
-
-	// Open directory.
-	dir = opendir(basepath); // Absolute or relative
-	if (dir == NULL) {
-		perror("opendir");
-		// do something
-	}
-
-	char *path = strdup(basepath);
-	int base_len = strlen(basepath)+1;
-	char *tmp;
-
-	while ((dir_ptr = readdir(dir)) != NULL) {
-		//printf("%s\n", dir_ptr->d_name);
-		if (strcmp(dir_ptr->d_name, ".") == 0 || strcmp(dir_ptr->d_name, "..") == 0) {
-			continue;
-		}
-
-		tmp = realloc(path, base_len + strlen(dir_ptr->d_name) + 1);
-		if (tmp == NULL) {
-			perror("realloc");
-		}
-		path = tmp;
-
-		strcpy(path, basepath);
-		strcat(path, "/");
-		strcat(path, dir_ptr->d_name);
-
-
-		//printf("%s\n", path);
-
-		tot += blockcount(path);
-
-	}
-
-	closedir(dir);
-
-	return tot;
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/**
- * 
- *
- * @param file		String containing the filename.
- * @return			true if file exists.
- */
-/*
-blkcnt_t get_blkcnt(char *filename) 
-{
-	blkcnt_t tot_cnt;
-	struct stat s;
-	DIR *dir;
-	struct dirent *dir_ptr;
-
-	if (lstat(filename, &s) == -1) {
-		perror("lstat");
-		return (blkcnt_t)-1;
-	}
-	tot_cnt = s.st_blocks;
-	*/
-	/*
-	char *cwd = malloc(256*sizeof(char));
-	getcwd(cwd, 256);
-	printf("%s\n", cwd);
-
-	dir = opendir(cwd);
-	if (dir == NULL) {
-		perror("opendir");
-		// do something
-	}
-	return 1;
-	*/
-	/*
-	// Check if file is a directory.
-	if (S_ISDIR(s.st_mode)) {
-		// Open directory.
-		dir = opendir(filename);
-		if (dir == NULL) {
-			perror("opendir");
-			// do something
-		}
-
-		while ((dir_ptr = readdir(dir)) != NULL) {
-			printf("%s\n", dir_ptr->d_name);
-			//get_blkcnt(strdup(dir_ptr->d_name));
-		}
-
-		closedir(dir);
-		// For each item in the directory:
-			// If not a directory:
-				// Get blockcount and add to total.
-			// If item is a directory:
-
-				// MUTEX LOCK
-				// Add subdirectory to task list.
-				// BROADCAST/SIGNAL
-				// MUTEX UNLOCK
-
-	} 
-
-	return tot_cnt;
-
-}
-*/
