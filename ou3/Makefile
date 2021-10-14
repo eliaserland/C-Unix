@@ -23,12 +23,10 @@ mdu.o: mdu.c
 list.o: list.c
 	$(CC) $(CFLAGS) -c $^ 
 	
-clean: 
-	-rm -f $(TARGET) $(OBJ)
-	
 memtest: $(TARGET)
 	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --show-reachable=yes --track-fds=yes ./$< /etc -j8
 
 helgrind: $(TARGET)
 	valgrind --tool=helgrind ./$< /etc -j8
-
+clean: 
+	-rm -f $(TARGET) $(OBJ) stdout.txt stderr.txt 
