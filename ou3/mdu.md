@@ -145,8 +145,11 @@ Resultaten kommer sedan läggas upp i en rankad tabell/graf på kursen gitlab me
 
 För att vara med i tävlingen ska ni lämna in en EXTRA makefile med namnet 'makefile\_competition'
 Den ska kompilera ert tävlingsprogram som ska heta mdu\_competition.
-Ni kan antingen bara återanvända er vanliga lösning i tävlingen eller skapa nya .c filer.
+Ni kan antingen bara återanvända er vanliga lösning i tävlingen eller skapa nya .c/.h filer.
 Skapar ni nya filer så bryr vi oss inte om kodkvaliten på dessa filer utan ni är fria att optimisera hur ni vill. Notera att detta gällar bara de filer som inte används till den 'riktiga' inlämningen.
+
+**Edit .c/.h filer som bara används till tävlingen måste zipas upp i en zip fil som heter competition.zip innan de lämnas in.** <br>
+**Detta för att inte vissa labres tester ska flippa ur...** <br> **Gör detta med kommandot:** <br> `zip -r competition.zip fil1.c fil2.c ...` <br> **Skicka ett mail om ni inte får detta att fungera / något annat med tävlingen är oklart.**
 
 De flesta av er har troligtvis aldrig optimiserat ett program förrut.
 Så här har ni några sätt ni kan testa att optimisera programmet på. Kom ihåg att mycket av detta är överkurs/onödigt så känn absolut inte att ni måste testa allt.
