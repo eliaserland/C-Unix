@@ -27,3 +27,13 @@ kursen Systemnära programmering (5DV088).
 ## Mail till handledare
 * 5dv088ht21-handl@cs.umu.se 
 
+## Resultat av tävlingen
+![/pkg j1](./images/mdu_j1_plot.png)
+
+![/pkg j4](./images/mdu_j4_plot.png)
+
+![/pkg j32](./images/mdu_j32_plot.png)
+
+Grattis c20wsm!!! Du vinner valfri godispåse från fiket i MIT-huset!
+
+Är faktiskt väldigt imponerad av era lösningar, trodde inte era resultat skulle vara såhär bra. Kul att ni ville vara med! 
