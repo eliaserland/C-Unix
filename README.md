@@ -13,7 +13,7 @@ kursen Systemnära programmering (5DV088).
 | ------ | ------      |  ------     |  ------ |
 | 1 - mexec| 2021-09-21 12:00  | 2021-10-11 12:00 |   2022-01-15 16:00 |
 | 2 - mmake| 2021-10-01 12:00  |  2021-10-22 12:00  |  2022-01-15 16:00 |
-| 3 - mdu| 2021-10-15 12:00 | * | 2022-01-15 16:00 |
+| 3 - mdu| 2021-10-15 12:00 | 2021-11-18 17:00 | 2022-01-15 16:00 |
 \* Senast 10 arbetsdagar efter rättning publicerad.
 
 ## Länkar / tutorials
@@ -27,3 +27,13 @@ kursen Systemnära programmering (5DV088).
 ## Mail till handledare
 * 5dv088ht21-handl@cs.umu.se 
 
+## Resultat av tävlingen
+![/pkg j1](./images/mdu_j1_plot.png)
+
+![/pkg j4](./images/mdu_j4_plot.png)
+
+![/pkg j32](./images/mdu_j32_plot.png)
+
+Grattis c20wsm!!! Du vinner valfri godispåse från fiket i MIT-huset!
+
+Är faktiskt väldigt imponerad av era lösningar, trodde inte era resultat skulle vara såhär bra. Kul att ni ville vara med! 
